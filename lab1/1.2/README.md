@@ -19,7 +19,7 @@ Below is short explanation of remaining files in the project folder.
 └── README.md                  This is the file you are currently reading
 ```
 
-## Potential issues
+## Notes
 
 Nothing important to note. but I have made a list of steps to run the following program using idf.py
 
