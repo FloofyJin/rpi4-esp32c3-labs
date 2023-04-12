@@ -1,0 +1,1 @@
+sudo nmcli con add type wifi con-name "eduroam" ifname wlan0 ssid "eduroam" wifi-sec.key-mgmt wpa-eap 802-1x.identity "XXX@ucsc.edu" 802-1x.password "XXX" 802-1x.system-ca-certs yes 802-1x.ca-cert ~/ca.crt 802-1x.client-cert ~/ca.crt 802-1x.eap "peap" 802-1x.phase2-auth mschapv2
