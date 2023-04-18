@@ -27,20 +27,20 @@ static esp_err_t i2c_master_init()
         .scl_io_num = I2C_MASTER_SCL_IO,
         .scl_pullup_en = GPIO_PULLUP_ENABLE,
         .master.clk_speed = I2C_MASTER_FREQ_HZ,
-};
+    };
 
-esp_err_t err = i2c_param_config(I2C_MASTER_NUM, &conf);
-if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to i2c_param_config %d", err);
-    return err;
-}
+    esp_err_t err = i2c_param_config(I2C_MASTER_NUM, &conf);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to i2c_param_config %d", err);
+        return err;
+    }
 
-err = i2c_driver_install(I2C_MASTER_NUM, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE,0);
-if(err != ESP_OK){
-    ESP_LOGE(TAG, "Failed to i2c_driver_install %d", err);
+    err = i2c_driver_install(I2C_MASTER_NUM, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE,0);
+    if(err != ESP_OK){
+        ESP_LOGE(TAG, "Failed to i2c_driver_install %d", err);
+        return err;
+    }
     return err;
-}
-return err;
 }
 
 static esp_err_t shtc3_read(uint16_t command, uint8_t *data, size_t size){
@@ -85,17 +85,41 @@ static float calculate_humidity(uint16_t raw_humidity)
     return 100.0 * (float)raw_humidity / 65535.0;
 }
 
+static float calculate_temperature(uint16_t raw_temperature)
+{
+    return raw_temperature * 175.0 / 65535.0 - 45.0;
+}
+
 void shtc3_task(){
+
+    // temperature_sensor_handle_t temp_handle = NULL;
+    // temperature_sensor_config_t temp_sensor = {
+    //     .range_min = 20,
+    //     .range_max = 50,
+    //     .clk_src = TEMPERATURE_SENSOR_CLK_SRC_XTAL,
+    // };
+    // ESP_ERROR_CHECK(temperature_sensor_install(&temp_sensor, &temp_handle));
+    // ESP_ERROR_CHECK(temperature_sensor_enable(temp_handle));
+    // Get converted sensor data
+    // float tsens_out;
+    // Disable the temperature sensor if it's not needed and save the power
+    // ESP_ERROR_CHECK(temperature_sensor_disable(temp_handle));
+
     while(1){
 
         uint8_t data[6] = {0,};
         uint16_t raw_humidity=0;
+        uint16_t raw_temperature=0;
+        // ESP_ERROR_CHECK(temperature_sensor_get_celsius(temp_handle, &tsens_out));
 
         esp_err_t err = shtc3_read(SHTC3_CMD_MEASURE, data, 6);
         if(err == ESP_OK){
             raw_humidity = (data[3] << 8) | data[4];
+            raw_temperature = (data[0] << 8) | data[1];
             float humidity = calculate_humidity(raw_humidity);
+            float temperature = calculate_temperature(raw_temperature);
             ESP_LOGI(TAG, "Humidity: %.2f %%", humidity);
+            ESP_LOGI(TAG, "Temperature: %.2f %%", temperature);
         } else {
             ESP_LOGI(TAG, "Failed to read data from SHTC3 sensor %d", err);
         }
