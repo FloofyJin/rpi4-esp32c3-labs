@@ -1,5 +1,5 @@
 
-/home/nymph/esp/lab2_image.elf:     file format elf32-littleriscv
+../lab2_image.elf:     file format elf32-littleriscv
 
 
 Disassembly of section .iram0.text:
