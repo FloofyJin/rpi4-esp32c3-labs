@@ -119,7 +119,7 @@ void shtc3_task(){
             float humidity = calculate_humidity(raw_humidity);
             float temperature = calculate_temperature(raw_temperature);
             ESP_LOGI(TAG, "Humidity: %.2f %%", humidity);
-            ESP_LOGI(TAG, "Temperature: %.2f %%", temperature);
+            ESP_LOGI(TAG, "Temperature: %.2f C (%.2f F)", temperature, (temperature*1.8)+32);
         } else {
             ESP_LOGI(TAG, "Failed to read data from SHTC3 sensor %d", err);
         }
