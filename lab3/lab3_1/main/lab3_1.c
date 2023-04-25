@@ -57,20 +57,34 @@ void icm42670_init(){
 }
 
 void read_gyro() {
-    int16_t gyro_x, gyro_y, gyro_z;
-    gyro_x = (i2c_read(0x11) << 8) | i2c_read(0x12);
-    gyro_y = (i2c_read(0x13) << 8) | i2c_read(0x14);
-    gyro_z = (i2c_read(0x15) << 8) | i2c_read(0x16);
+    // int16_t gyro_x, gyro_y, gyro_z;
+    // gyro_x = (i2c_read(0x11) << 8) | i2c_read(0x12);
+    // gyro_y = (i2c_read(0x13) << 8) | i2c_read(0x14);
+    // gyro_z = (i2c_read(0x15) << 8) | i2c_read(0x16);
+    // float dps_conversion = 2000.0 / 32768.0;
+    // float gyro_x_dps = (float)gyro_x * dps_conversion;
+    // float gyro_y_dps = (float)gyro_y * dps_conversion;
+    // float gyro_z_dps = (float)gyro_z * dps_conversion;
+    // printf("Gyro X: %.2f dps, Gyro Y: %.2f dp, gyro Z: %.2f dps\n", gyro_x_dps, gyro_y_dps, gyro_z_dps);
 
-    float dps_conversion = 2000.0 / 32768.0;
+    int16_t data_x = (i2c_read(0x0B) << 8) | i2c_read(0x0C);
+    int16_t data_y = (i2c_read(0x0D) << 8) | i2c_read(0x0E);
+    // int16_t data_z = (i2c_read(0x0F) << 8) | i2c_read(0x10);
 
-    float gyro_x_dps = (float)gyro_x * dps_conversion;
-    float gyro_y_dps = (float)gyro_y * dps_conversion;
-    float gyro_z_dps = (float)gyro_z * dps_conversion;
-
-    printf("gyro x: %.2d\n", gyro_x);
-
-    printf("Gyro X: %.2f dps, Gyro Y: %.2f dp, gyro Z: %.2f dps\n", gyro_x_dps, gyro_y_dps, gyro_z_dps);
+    if(data_y < -1000){
+        printf("UP ");
+    }else if(data_y > 1000){
+        printf("DOWN ");
+    }
+    if(data_x < -1000){
+        printf("RIGHT ");
+    }else if(data_x > 1000){
+        printf("LEFT ");
+    }
+    if(abs(data_y) > 1000 || abs(data_x) > 1000 ){
+        printf("\n");
+    }
+    // printf("X: %d dps, Y: %d dp, Z: %d dps\n", data_x, data_y, data_z);
 }
 
 void app_main(void)
@@ -79,6 +93,6 @@ void app_main(void)
     icm42670_init();
     while (1){
         read_gyro();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
