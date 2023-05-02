@@ -241,26 +241,26 @@ void read_gyro() {
 
 void hid_demo_task(void *pvParameters)
 {
-    int speed = 5;
+    int speed = 3;
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     while(1) {
         // vTaskDelay(5000 / portTICK_PERIOD_MS);
-        ESP_LOGI(HID_DEMO_TAG, "getting speed/dir");
+        // ESP_LOGI(HID_DEMO_TAG, "getting speed/dir");
         int16_t data_x = (i2c_read(0x0B) << 8) | i2c_read(0x0C);
         int16_t data_y = (i2c_read(0x0D) << 8) | i2c_read(0x0E);
         if (sec_conn) {
             ESP_LOGI(HID_DEMO_TAG, "sending mouse");
             int d_yspeed = 0;
             if (data_y < -500){
-                d_yspeed = -speed * data_y / 500;
+                d_yspeed = speed * data_y / 500;
             }else if(data_y > 500){
                 d_yspeed = speed * data_y / 500;
             }
             int d_xspeed = 0;
-            if (data_y < -500){
+            if (data_x < -500){
                 d_xspeed = -speed * data_x / 500;
-            }else if(data_y > 500){
-                d_xspeed = speed * data_x / 500;
+            }else if(data_x > 500){
+                d_xspeed = -speed * data_x / 500;
             }
             printf("X: %d dps, Y: %d dp\n", d_xspeed, d_yspeed);
             esp_hidd_send_mouse_value(hid_conn_id, 0, d_xspeed, d_yspeed);
