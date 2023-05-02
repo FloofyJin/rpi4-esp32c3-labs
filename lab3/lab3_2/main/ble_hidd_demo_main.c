@@ -169,7 +169,7 @@ void hid_demo_task(void *pvParameters)
 {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     while(1) {
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
         if (sec_conn) {
             ESP_LOGI(HID_DEMO_TAG, "sending mouse loc");
             send_mouse = true;

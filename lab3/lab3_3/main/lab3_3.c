@@ -27,6 +27,9 @@
 #include "driver/gpio.h"
 #include "hid_dev.h"
 
+#include "driver/i2c.h"
+#include "sdkconfig.h"
+
 /**
  * Brief:
  * This example Implemented BLE HID device profile related functions, in which the HID device
@@ -46,12 +49,16 @@
  * if you got `GATT_INSUF_ENCRYPTION` error, please ignore.
  */
 
-#define HID_DEMO_TAG "HID_DEMO"
+#define ICM42670_ADDR 0x68
+#define I2C_PORT I2C_NUM_0
+#define SDA_PIN 10
+#define SCL_PIN 8
 
+#define HID_DEMO_TAG "HID_DEMO"
 
 static uint16_t hid_conn_id = 0;
 static bool sec_conn = false;
-static bool send_mouse = false;
+// static bool send_mouse = false;
 #define CHAR_DECLARATION_SIZE   (sizeof(uint8_t))
 
 static void hidd_event_callback(esp_hidd_cb_event_t event, esp_hidd_cb_param_t *param);
@@ -62,6 +69,52 @@ static uint8_t hidd_service_uuid128[] = {
     //first uuid, 16bit, [12],[13] is the value
     0xfb, 0x34, 0x9b, 0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x12, 0x18, 0x00, 0x00,
 };
+
+// gyro
+void i2c_master_init(void){
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = SDA_PIN,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_io_num = SCL_PIN,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = 100000,
+    };
+
+    ESP_ERROR_CHECK(i2c_param_config(I2C_PORT, &conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_PORT, conf.mode, 0, 0, 0));
+}
+
+void i2c_write(uint8_t reg, uint8_t data){
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (ICM42670_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg, true);
+    i2c_master_write_byte(cmd, data, true);
+    i2c_master_stop(cmd);
+    i2c_master_cmd_begin(I2C_PORT, cmd, pdMS_TO_TICKS(1000));
+    i2c_cmd_link_delete(cmd);
+}
+
+uint8_t i2c_read(uint8_t reg){
+    uint8_t data;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (ICM42670_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg, true);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (ICM42670_ADDR << 1) | I2C_MASTER_READ, true);
+    i2c_master_read_byte(cmd, &data, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    i2c_master_cmd_begin(I2C_PORT, cmd, pdMS_TO_TICKS(1000));
+    i2c_cmd_link_delete(cmd);
+    return data;
+}
+
+void icm42670_init(){
+    i2c_write(0x1F, 0b00011111);
+}
+//
 
 static esp_ble_adv_data_t hidd_adv_data = {
     .set_scan_rsp = false,
@@ -165,47 +218,63 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
     }
 }
 
+void read_gyro() {
+    int16_t data_x = (i2c_read(0x0B) << 8) | i2c_read(0x0C);
+    int16_t data_y = (i2c_read(0x0D) << 8) | i2c_read(0x0E);
+    // int16_t data_z = (i2c_read(0x0F) << 8) | i2c_read(0x10);
+
+    if(data_y < -1000){
+        printf("UP ");
+    }else if(data_y > 1000){
+        printf("DOWN ");
+    }
+    if(data_x < -1000){
+        printf("RIGHT ");
+    }else if(data_x > 1000){
+        printf("LEFT ");
+    }
+    if(abs(data_y) > 1000 || abs(data_x) > 1000 ){
+        printf("\n");
+    }
+    // printf("X: %d dps, Y: %d dp, Z: %d dps\n", data_x, data_y, data_z);
+}
+
 void hid_demo_task(void *pvParameters)
 {
+    int speed = 5;
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     while(1) {
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+        ESP_LOGI(HID_DEMO_TAG, "getting speed/dir");
+        int16_t data_x = (i2c_read(0x0B) << 8) | i2c_read(0x0C);
+        int16_t data_y = (i2c_read(0x0D) << 8) | i2c_read(0x0E);
         if (sec_conn) {
-            ESP_LOGI(HID_DEMO_TAG, "sending mouse loc");
-            send_mouse = true;
-            //uint8_t key_vaule = {HID_KEY_A};
-            //esp_hidd_send_keyboard_value(hid_conn_id, 0, &key_vaule, 1);
-            // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_UP, true);
-            int duration = 2000;
-            int intervals = 40;
-            int delays = duration/intervals;
-            for(int i =0; i < intervals; i++){
-                esp_hidd_send_mouse_value(hid_conn_id, 0, 10, 0);
-                vTaskDelay(delays / portTICK_PERIOD_MS);
+            ESP_LOGI(HID_DEMO_TAG, "sending mouse");
+            int d_yspeed = 0;
+            if (data_y < -500){
+                d_yspeed = -speed * data_y / 500;
+            }else if(data_y > 500){
+                d_yspeed = speed * data_y / 500;
             }
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            if (send_mouse) {
-                send_mouse = false;
-                // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_UP, false);
-                // esp_hidd_send_mouse_value(hid_conn_id, 0, 10, 0);
-                // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_DOWN, true);
-                // esp_hidd_send_mouse_value(hid_conn_id, 0, -10, 0);
-                // vTaskDelay(3000 / portTICK_PERIOD_MS);
-                // esp_hidd_send_consumer_value(hid_conn_id, HID_CONSUMER_VOLUME_DOWN, false);
-                // esp_hidd_send_mouse_value(hid_conn_id, 0, -10, 0);
-                for(int i =0; i < intervals; i++){
-                    esp_hidd_send_mouse_value(hid_conn_id, 0, -10, 0);
-                    vTaskDelay(delays / portTICK_PERIOD_MS);
-                }
+            int d_xspeed = 0;
+            if (data_y < -500){
+                d_xspeed = -speed * data_x / 500;
+            }else if(data_y > 500){
+                d_xspeed = speed * data_x / 500;
             }
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            printf("X: %d dps, Y: %d dp\n", d_xspeed, d_yspeed);
+            esp_hidd_send_mouse_value(hid_conn_id, 0, d_xspeed, d_yspeed);
         }
+        vTaskDelay(20 / portTICK_PERIOD_MS);
     }
 }
 
 
 void app_main(void)
 {
+    i2c_master_init();
+    icm42670_init();
+
     esp_err_t ret;
 
     // Initialize NVS.
