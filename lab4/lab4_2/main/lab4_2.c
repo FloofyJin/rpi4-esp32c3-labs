@@ -81,11 +81,11 @@ void write_hello(){
     // write data to RAM
     i2c_master_write_byte(cmd, 0x40, true);
     i2c_master_write_byte(cmd, 0x48, true);
-    
+
     i2c_master_stop(cmd);
     esp_err_t err = i2c_master_cmd_begin(I2C_NUM_0, cmd, pdMS_TO_TICKS(1000));
     if(err != ESP_OK){
-        ESP_LOGE(TAG, "Failed to 1st write %d", err);
+        ESP_LOGE(TAG, "Failed to write hello %d", err);
     }
     i2c_cmd_link_delete(cmd);
     return err;
