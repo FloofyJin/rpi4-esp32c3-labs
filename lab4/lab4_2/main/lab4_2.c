@@ -5,13 +5,14 @@
 #include "driver/i2c.h"
 #include "sdkconfig.h"
 // #include "DFRobot_LCD.h"
+// #include "i2c_scanner.h"
 
 #define I2C_MASTER_SCL_IO 8        
 #define I2C_MASTER_SDA_IO 10        
 #define I2C_MASTER_NUM    I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ 100000  
 
-#define LCD_ADDR 0x7C
+// #define LCD_ADDR 0x7C
 
 static const char *TAG = "lab4";
 
@@ -24,7 +25,7 @@ static const char *TAG = "lab4";
 //     void app_main();
 // }
 
-void i2c_master_init(void){
+static esp_err_t i2c_master_init(void){
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
         .sda_io_num = I2C_MASTER_SCL_IO,
@@ -34,8 +35,18 @@ void i2c_master_init(void){
         .master.clk_speed = I2C_MASTER_FREQ_HZ,
     };
 
-    ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
-    ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0));
+    esp_err_t err = i2c_param_config(I2C_MASTER_NUM, &conf);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to i2c_param_config %d", err);
+        return err;
+    }
+
+    err = i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0);
+    if(err != ESP_OK){
+        ESP_LOGE(TAG, "Failed to i2c_driver_install %d", err);
+        return err;
+    }
+    return err;
 }
 
 // void i2c_write(uint8_t reg, uint8_t data){
@@ -48,19 +59,23 @@ void i2c_master_init(void){
 //     i2c_cmd_link_delete(cmd);
 // }
 
-static esp_err_t lcd_init(void){
+static void lcd_init(void){
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     // display on
-    i2c_master_write_byte(cmd, 0x7c | I2C_MASTER_WRITE, true);//slave
+    i2c_master_write_byte(cmd, 0x7C | I2C_MASTER_WRITE, true);//slave
+
     i2c_master_write_byte(cmd, 0x80, true);//control
-    i2c_master_write_byte(cmd, 0x0C, true);//data
+    i2c_master_write_byte(cmd, 0x38, true);//data
     // clear display
     i2c_master_write_byte(cmd, 0x80, true);//control
-    i2c_master_write_byte(cmd, 0x01, true);//data
+    i2c_master_write_byte(cmd, 0x0C, true);//data
     // function set
+    i2c_master_write_byte(cmd, 0x80, true);//control
+    i2c_master_write_byte(cmd, 0x01, true);//data
+    
     i2c_master_write_byte(cmd, 0x00, true);//control
-    i2c_master_write_byte(cmd, 0x28, true);//data
+    i2c_master_write_byte(cmd, 0x06, true);//data
 
     i2c_master_stop(cmd);
     esp_err_t err = i2c_master_cmd_begin(I2C_NUM_0, cmd, pdMS_TO_TICKS(1000));
@@ -68,14 +83,13 @@ static esp_err_t lcd_init(void){
         ESP_LOGE(TAG, "Failed to 1st write %d", err);
     }
     i2c_cmd_link_delete(cmd);
-    return err;
 }
 
-void write_hello(){
+static void write_hello(){
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     // set DDRAM
-    i2c_master_write_byte(cmd, 0x7C | I2C_MASTER_WRITE, true);//slave
+    i2c_master_write_byte(cmd, (0x7C<<1) | I2C_MASTER_WRITE, true);//slave
     i2c_master_write_byte(cmd, 0x80, true);//control
     i2c_master_write_byte(cmd, 0x80, true);//data
     // write data to RAM
@@ -88,14 +102,18 @@ void write_hello(){
         ESP_LOGE(TAG, "Failed to write hello %d", err);
     }
     i2c_cmd_link_delete(cmd);
-    return err;
 }
 
 void app_main(void)
 {
-    i2c_master_init();
+    esp_err_t err = i2c_master_init();
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize I2C master");
+        return;
+    }
+
     lcd_init();
-    write_hello();
+    // write_hello();
 
     // while(true){
     //     lcd.init();
