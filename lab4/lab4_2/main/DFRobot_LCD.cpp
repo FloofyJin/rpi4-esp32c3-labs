@@ -11,11 +11,19 @@
  * @date  2017-2-10
  */
 
-#include <Arduino.h>
+// #include <Arduino.h>
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include <Wire.h>
+// #include <Wire.h>
+#include <stdio.h>
+#include "esp_log.h"
+#include <stdlib.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/i2c.h"
+#include "sdkconfig.h"
+#include "i2c_master_init.h"
 
 #include "DFRobot_LCD.h"
 
@@ -38,7 +46,7 @@ DFRobot_LCD::DFRobot_LCD(uint8_t lcd_cols,uint8_t lcd_rows,uint8_t lcd_Addr,uint
 
 void DFRobot_LCD::init()
 {
-	Wire.begin();
+    i2c_master_init();
 	_showfunction = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS;
 	begin(_cols, _rows);
 }
@@ -46,13 +54,15 @@ void DFRobot_LCD::init()
 void DFRobot_LCD::clear()
 {
     command(LCD_CLEARDISPLAY);        // clear display, set cursor position to zero
-    delayMicroseconds(2000);          // this command takes a long time!
+    // delayMicroseconds(2000);          // this command takes a long time!
+    vTaskDelay(200/portTICK_PERIOD_MS);
 }
 
 void DFRobot_LCD::home()
 {
     command(LCD_RETURNHOME);        // set cursor position to zero
-    delayMicroseconds(2000);        // this command takes a long time!
+    // delayMicroseconds(2000);        // this command takes a long time!
+    vTaskDelay(200/portTICK_PERIOD_MS);
 }
 
 void DFRobot_LCD::noDisplay()
@@ -218,10 +228,14 @@ void DFRobot_LCD::load_custom_character(uint8_t char_num, uint8_t *rows){
 		customSymbol(char_num, rows);
 }
 
-void DFRobot_LCD::printstr(const char c[]){
+void DFRobot_LCD::printstr(const char c[], DFRobot_LCD lcd, int row){
 	///< This function is not identical to the function used for "real" I2C displays
 	///< it's here so the user sketch doesn't have to be changed 
-	print(c);
+	// print(c);
+    for(int i =0; i < strlen(c); i++){
+        lcd.setCursor(i,row);
+        lcd.write(c[i]);
+    }
 }
 
 /*******************************private*******************************/
@@ -241,7 +255,8 @@ void DFRobot_LCD::begin(uint8_t cols, uint8_t lines, uint8_t dotsize)
     ///< SEE PAGE 45/46 FOR INITIALIZATION SPECIFICATION!
     ///< according to datasheet, we need at least 40ms after power rises above 2.7V
     ///< before sending commands. Arduino can turn on way befer 4.5V so we'll wait 50
-    delay(50);
+    // delay(50);
+    vTaskDelay(50/portTICK_PERIOD_MS);
 
 
     ///< this is according to the hitachi HD44780 datasheet
@@ -249,11 +264,13 @@ void DFRobot_LCD::begin(uint8_t cols, uint8_t lines, uint8_t dotsize)
 
     ///< Send function set command sequence
     command(LCD_FUNCTIONSET | _showfunction);
-    delay(5);  // wait more than 4.1ms
+    // delay(5);  // wait more than 4.1ms
+    vTaskDelay(5/portTICK_PERIOD_MS);
 	
 	///< second try
     command(LCD_FUNCTIONSET | _showfunction);
-    delay(5);
+    // delay(5);
+    vTaskDelay(5/portTICK_PERIOD_MS);
 
     ///< third go
     command(LCD_FUNCTIONSET | _showfunction);
@@ -288,20 +305,38 @@ void DFRobot_LCD::begin(uint8_t cols, uint8_t lines, uint8_t dotsize)
 
 void DFRobot_LCD::send(uint8_t *data, uint8_t len)
 {
-    Wire.beginTransmission(_lcdAddr);        // transmit to device #4
-    for(int i=0; i<len; i++) {
-        Wire.write(data[i]);
-		delay(5);
+    // Wire.beginTransmission(_lcdAddr);        // transmit to device #4
+    for(int i=1; i<len; i++) {
+        // Wire.write(data[i]);
+		// delay(5);
+        i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+        i2c_master_start(cmd);
+        i2c_master_write_byte(cmd, (_lcdAddr<<1) | I2C_MASTER_WRITE, true);
+        i2c_master_write_byte(cmd, data[0], true);
+        i2c_master_write_byte(cmd, data[i], true);
+        i2c_master_stop(cmd);
+        i2c_master_cmd_begin(I2C_NUM_0, cmd, pdMS_TO_TICKS(1000));
+        i2c_cmd_link_delete(cmd);
+
     }
-    Wire.endTransmission();                     // stop transmitting
+    // Wire.endTransmission();                     // stop transmitting
 }
 
 void DFRobot_LCD::setReg(uint8_t addr, uint8_t data)
 {
-    Wire.beginTransmission(_RGBAddr); // transmit to device #4
-    Wire.write(addr);
-    Wire.write(data);
-    Wire.endTransmission();    // stop transmitting
+    // Wire.beginTransmission(_RGBAddr); // transmit to device #4
+    // Wire.write(addr);
+    // Wire.write(data);
+    // Wire.endTransmission();    // stop transmitting
+
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (_RGBAddr << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, addr, true);
+    i2c_master_write_byte(cmd, data, true);
+    i2c_master_stop(cmd);
+    i2c_master_cmd_begin(I2C_NUM_0, cmd, pdMS_TO_TICKS(1000));
+    i2c_cmd_link_delete(cmd);
 }
 
 /************************unsupported API functions***************************/

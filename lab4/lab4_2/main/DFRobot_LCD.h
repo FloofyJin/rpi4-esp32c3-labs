@@ -91,7 +91,7 @@
 #define LCD_5x10DOTS 0x04
 #define LCD_5x8DOTS 0x00
 
-class DFRobot_LCD
+class DFRobot_LCD 
 {
 
 public:
@@ -194,7 +194,7 @@ public:
   void cursor_off();      					// alias for noCursor()
   void setBacklight(uint8_t new_val);				// alias for backlight() and nobacklight()
   void load_custom_character(uint8_t char_num, uint8_t *rows);	// alias for createChar()
-  void printstr(const char[]);
+  void printstr(const char[], DFRobot_LCD lcd, int row);
   
   /*!
    *  @brief Unsupported API functions (not implemented in this library)

@@ -18,8 +18,8 @@ void app_main(void)
     lcd.init();
     while(1){
         lcd.setRGB(0,255,0);
-        lcd.setCursor(4,0);
-        lcd.write('h');
+        lcd.printstr("Hello CSE121!", lcd, 0);
+        lcd.printstr("Jinsung Park", lcd, 1);
         vTaskDelay(50/portTICK_PERIOD_MS);
     }
 }
