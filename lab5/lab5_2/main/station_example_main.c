@@ -72,16 +72,19 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "wifi station";
 
-static int s_retry_num = 0;
+char sc_temp[512];
+// static float esp_temp = "";
+// static float esp_hum = "";
 
-#if 0
+//////// start
+// http
+////////
+#define RPI_SERVER "www.wttr.in"
+#define RPI_PORT "80"
+#define RPI_PATH "/Santa+Cruz?format=%l:+%c+%t"
 
-#define WEB_SERVER "www.wttr.in"
-#define WEB_PORT "80"
-#define WEB_PATH "/Santa+Cruz?format=%l:+%c+%t"
-
-static const char *REQUEST = "GET " WEB_PATH " HTTP/1.0\r\n"
-    "Host: "WEB_SERVER":"WEB_PORT"\r\n"
+static const char *RPI_REQUEST = "put " RPI_PATH " HTTP/1.0\r\n"
+    "Host: "RPI_SERVER":"RPI_PORT"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
     "Accept: */*\r\n"
     "\r\n";
@@ -98,7 +101,7 @@ static void http_get_task(void *pvParameters)
     char recv_buf[64];
 
     while(1) {
-        int err = getaddrinfo(WEB_SERVER, WEB_PORT, &hints, &res);
+        int err = getaddrinfo(RPI_SERVER, RPI_PORT, &hints, &res);
 
         if(err != 0 || res == NULL) {
             ESP_LOGE(TAG, "DNS lookup failed err=%d res=%p", err, res);
@@ -132,7 +135,7 @@ static void http_get_task(void *pvParameters)
         ESP_LOGI(TAG, "... connected");
         freeaddrinfo(res);
 
-        if (write(s, REQUEST, strlen(REQUEST)) < 0) {
+        if (write(s, RPI_REQUEST, strlen(RPI_REQUEST)) < 0) {
             ESP_LOGE(TAG, "... socket send failed");
             close(s);
             vTaskDelay(4000 / portTICK_PERIOD_MS);
@@ -170,7 +173,13 @@ static void http_get_task(void *pvParameters)
         ESP_LOGI(TAG, "Starting again!");
     }
 }
-#else
+////////
+// http
+//////// end
+
+//////// start
+// https
+////////
 #include "esp_tls.h"
 #if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 #include "esp_crt_bundle.h"
@@ -178,7 +187,8 @@ static void http_get_task(void *pvParameters)
 /* Constants that aren't configurable in menuconfig */
 #define WEB_SERVER "www.wttr.in"
 #define WEB_PORT "443"
-#define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%l:+%c+%t"
+// #define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%l:+%c+%t"
+#define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%t"
 #define WEB_PATH "/Santa+Cruz?format=%l:+%c+%t"
 
 #define SERVER_URL_MAX_SZ 256
@@ -276,13 +286,19 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
             break;
         }
 
+
+        // strncpy(sc_temp, buf, ret);
+        int sum = 0 , index =0 ;
+        while(sscanf(buf+(sum+=index),"%s%n",sc_temp,&index)!=-1);
+        fprintf(stdout, "sc_temp: %s", sc_temp);
+
         len = ret;
         ESP_LOGD(TAG, "%d bytes read", len);
         /* Print response directly to stdout as it is read */
-        for (int i = 0; i < len; i++) {
-            putchar(buf[i]);
-        }
-        putchar('\n'); // JSON output doesn't have a newline at end
+        // for (int i = 0; i < len; i++) {
+        //     putchar(buf[i]);
+        // }
+        // putchar('\n'); // JSON output doesn't have a newline at end
     } while (1);
 
 cleanup:
@@ -392,7 +408,14 @@ static void https_request_task(void *pvparameters)
     ESP_LOGI(TAG, "Finish https_request example");
     vTaskDelete(NULL);
 }
-#endif
+////////
+// https
+//////// end
+
+//////// start
+// wifi
+////////
+static int s_retry_num = 0;
 
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
@@ -481,6 +504,9 @@ void wifi_init_sta(void)
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
 }
+////////
+// wifi
+//////// end
 
 void app_main(void)
 {
