@@ -23,6 +23,7 @@
 #include "lwip/dns.h"
 #include "sdkconfig.h"
 
+#include "driver/i2c.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu
 
@@ -69,12 +70,126 @@ static EventGroupHandle_t s_wifi_event_group;
  * - we failed to connect after the maximum amount of retries */
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
+//////// above
+// wifi defines
+////////
 
 static const char *TAG = "wifi station";
 
 char sc_temp[512];
-// static float esp_temp = "";
-// static float esp_hum = "";
+char esp_temp[10];
+char esp_hum[10];
+
+//////// start
+// humidity and temperature sensor
+////////
+#define I2C_MASTER_SCL_IO 8 /*!< GPIO number for I2C master SCL */
+#define I2C_MASTER_SDA_IO 10 /*!< GPIO number for I2C master SDA */
+#define I2C_MASTER_NUM I2C_NUM_0
+#define I2C_MASTER_TX_BUF_DISABLE 0
+#define I2C_MASTER_RX_BUF_DISABLE 0
+#define I2C_MASTER_FREQ_HZ 100000
+#define SHTC3_SENSOR_ADDR 0x70 /*!< SHTC3 12C address */
+#define SHTC3_CMD_MEASURE 0x7CA2
+
+static esp_err_t i2c_master_init()
+{
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+
+    esp_err_t err = i2c_param_config(I2C_MASTER_NUM, &conf);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to i2c_param_config %d", err);
+        return err;
+    }
+
+    err = i2c_driver_install(I2C_MASTER_NUM, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE,0);
+    if(err != ESP_OK){
+        ESP_LOGE(TAG, "Failed to i2c_driver_install %d", err);
+        return err;
+    }
+    return err;
+}
+
+static esp_err_t shtc3_read(uint16_t command, uint8_t *data, size_t size){
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    esp_err_t err;
+
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (SHTC3_SENSOR_ADDR <<1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, command >> 8, true);
+    i2c_master_write_byte(cmd, command & 0xFF, true);
+    i2c_master_stop(cmd);
+    err = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
+    if(err != ESP_OK){
+        ESP_LOGE(TAG, "Failed to 1st write %d", err);
+
+        i2c_cmd_link_delete(cmd);
+        return err;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(20));
+    i2c_cmd_link_delete(cmd);
+    
+    cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (SHTC3_SENSOR_ADDR << 1) | I2C_MASTER_READ, true);
+    i2c_master_read(cmd, data, size, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    err = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, pdMS_TO_TICKS(1000));
+    if(err != ESP_OK){
+        ESP_LOGE(TAG, "failed to 2nd read %d", err);
+    }
+    
+    i2c_cmd_link_delete(cmd);
+    return err;
+}
+
+static float calculate_humidity(uint16_t raw_humidity)
+{
+    return 100.0 * (float)raw_humidity / 65535.0;
+}
+
+static float calculate_temperature(uint16_t raw_temperature)
+{
+    return raw_temperature * 175.0 / 65535.0 - 45.0;
+}
+
+void shtc3_task(){
+    while(1){
+
+        uint8_t data[6] = {0,};
+        uint16_t raw_humidity=0;
+        uint16_t raw_temperature=0;
+        // ESP_ERROR_CHECK(temperature_sensor_get_celsius(temp_handle, &tsens_out));
+
+        esp_err_t err = shtc3_read(SHTC3_CMD_MEASURE, data, 6);
+        if(err == ESP_OK){
+            raw_humidity = (data[3] << 8) | data[4];
+            raw_temperature = (data[0] << 8) | data[1];
+            float humidity = calculate_humidity(raw_humidity);
+            float temperature = calculate_temperature(raw_temperature);
+            sprintf(esp_temp, "%s%.0fC", "Temp: ", temperature);
+            sprintf(esp_hum, "%s%.0f%%", "Hum : ", humidity);
+            // ESP_LOGI(TAG, "Humidity: %.2f %%", humidity);
+            // ESP_LOGI(TAG, "Temperature: %.2f C (%.2f F)", temperature, (temperature*1.8)+32);
+        } else {
+            ESP_LOGI(TAG, "Failed to read data from SHTC3 sensor %d", err);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+////////
+// humidity and temperature sensor
+//////// end
 
 //////// start
 // http
@@ -290,7 +405,9 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
         // strncpy(sc_temp, buf, ret);
         int sum = 0 , index =0 ;
         while(sscanf(buf+(sum+=index),"%s%n",sc_temp,&index)!=-1);
-        fprintf(stdout, "sc_temp: %s", sc_temp);
+        fprintf(stdout, "sc_temp: %s\n", sc_temp);
+        fprintf(stdout, "esp_temp: %s\n", esp_temp);
+        fprintf(stdout, "esp_hum: %s\n", esp_hum);
 
         len = ret;
         ESP_LOGD(TAG, "%d bytes read", len);
@@ -311,7 +428,7 @@ exit:
 }
 
 #if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
-static void https_get_request_using_crt_bundle(void)
+static void https_get_request_using_crt_bundle(void)/////////////
 {
     ESP_LOGI(TAG, "https_request using crt bundle");
     esp_tls_cfg_t cfg = {
@@ -321,7 +438,7 @@ static void https_get_request_using_crt_bundle(void)
 }
 #endif // CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 
-static void https_get_request_using_cacert_buf(void)
+static void https_get_request_using_cacert_buf(void)//////////////
 {
     ESP_LOGI(TAG, "https_request using cacert_buf");
     esp_tls_cfg_t cfg = {
@@ -331,7 +448,7 @@ static void https_get_request_using_cacert_buf(void)
     https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
 }
 
-static void https_get_request_using_global_ca_store(void)
+static void https_get_request_using_global_ca_store(void)////////////
 {
     esp_err_t esp_ret = ESP_FAIL;
     ESP_LOGI(TAG, "https_request using global ca_store");
@@ -348,7 +465,7 @@ static void https_get_request_using_global_ca_store(void)
 }
 
 #ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
-static void https_get_request_to_local_server(const char* url)
+static void https_get_request_to_local_server(const char* url)//////////
 {
     ESP_LOGI(TAG, "https_request to local server");
     esp_tls_cfg_t cfg = {
@@ -360,7 +477,7 @@ static void https_get_request_to_local_server(const char* url)
     https_get_request(cfg, url, LOCAL_SRV_REQUEST);
 }
 
-static void https_get_request_using_already_saved_session(const char *url)
+static void https_get_request_using_already_saved_session(const char *url)//////////////
 {
     ESP_LOGI(TAG, "https_request using saved client session");
     esp_tls_cfg_t cfg = {
@@ -403,8 +520,10 @@ static void https_request_task(void *pvparameters)
     https_get_request_using_crt_bundle();
 #endif
     ESP_LOGI(TAG, "Minimum free heap size: %" PRIu32 " bytes", esp_get_minimum_free_heap_size());
-    https_get_request_using_cacert_buf();
-    https_get_request_using_global_ca_store();
+    // while(1){//repeat run temp/hum
+    //     https_get_request_using_cacert_buf();
+    // }
+    // https_get_request_using_global_ca_store(); //dont need
     ESP_LOGI(TAG, "Finish https_request example");
     vTaskDelete(NULL);
 }
@@ -520,6 +639,15 @@ void app_main(void)
 
     ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
     wifi_init_sta();
+
+    //Initialize i2c for h and t
+    esp_err_t err = i2c_master_init();
+    if(err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize I2C master");
+        return;
+    }
+    // shtc3_task();
+    xTaskCreate(&shtc3_task, "shtc3_task", 4096, NULL, 5, NULL);
 
     // xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
     xTaskCreate(&https_request_task, "https_get_task", 8192, NULL, 5, NULL);
