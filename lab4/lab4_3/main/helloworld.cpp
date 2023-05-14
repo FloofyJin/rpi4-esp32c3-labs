@@ -93,8 +93,5 @@ void app_main(void)
         }
 
         vTaskDelay(1000/portTICK_PERIOD_MS);
-
-        // lcd.printstr("Hello CSE121!", lcd, 0);
-        // lcd.printstr("Jinsung PArk", lcd, 1);
     }
 }
