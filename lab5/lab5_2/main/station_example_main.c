@@ -76,6 +76,8 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "wifi station";
 
+char location[64];
+
 char sc_temp[512];
 char esp_temp[10];
 char esp_hum[10];
@@ -194,18 +196,31 @@ void shtc3_task(){
 //////// start
 // http
 ////////
-#define RPI_SERVER ""
+char *RPI_SERVER;
+// #define RPI_SERVER = "example.com"
 #define RPI_PORT "8000"
 #define RPI_PATH "/"
 
-static const char *RPI_REQUEST = "GET " RPI_PATH " HTTP/1.0\r\n"
-    "Host: "RPI_SERVER":"RPI_PORT"\r\n"
+// static char *RPI_REQUEST = "GET " RPI_PATH " HTTP/1.0\r\n"
+//     "Host: "RPI_SERVER":"RPI_PORT"\r\n"
+//     "User-Agent: esp-idf/1.0 esp32\r\n"
+//     "Accept: */*\r\n"
+//     "\r\n";
+static char *RPI_REQUEST_a = "GET " RPI_PATH " HTTP/1.0\r\n"
+    "Host: ";
+static char *RPI_REQUEST_b = ":"RPI_PORT"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
     "Accept: */*\r\n"
     "\r\n";
 
 static void http_get_task(void *pvParameters)
 {
+    char *RPI_REQUEST = (char *) malloc(1+strlen(RPI_REQUEST_a)+strlen(RPI_SERVER)+strlen(RPI_REQUEST_b));
+    strcpy(RPI_REQUEST, RPI_REQUEST_a);
+    strcat(RPI_REQUEST, RPI_SERVER);
+    strcat(RPI_REQUEST, RPI_REQUEST_b);
+    printf(RPI_REQUEST);
+
     const struct addrinfo hints = {
         .ai_family = AF_INET,
         .ai_socktype = SOCK_STREAM,
@@ -269,28 +284,45 @@ static void http_get_task(void *pvParameters)
             continue;
         }
         ESP_LOGI(TAG, "... set socket receiving timeout success");
+        
+        // int sum = 0 , index =0 ;
+        // while(sscanf(recv_buf+(sum+=index),"%s%n",location,&index)!=-1);
+        // fprintf(stdout, "location: %s\n", location);
 
         /* Read HTTP response */
         do {
             bzero(recv_buf, sizeof(recv_buf));
             r = read(s, recv_buf, sizeof(recv_buf)-1);
             for(int i = 0; i < r; i++) {
-                putchar(recv_buf[i]);
+                // putchar(recv_buf[i]);
             }
         } while(r > 0);
 
         ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
         close(s);
+
         for(int countdown = 10; countdown >= 0; countdown--) {
-            ESP_LOGI(TAG, "%d... ", countdown);
+            // ESP_LOGI(TAG, "%d... ", countdown);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
         ESP_LOGI(TAG, "Starting again!");
     }
+
+    free(RPI_REQUEST);
 }
 
-static const char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
-    "Host: "RPI_SERVER":"RPI_PORT"\r\n"
+// static const char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
+//     "Host: "RPI_SERVER":"RPI_PORT"\r\n"
+//     "User-Agent: esp-idf/1.0 esp32\r\n"
+//     "Accept: */*\r\n"
+//     "Content-Type: text/plain\r\n"
+//     "Content-Length: 13\r\n"
+//     "\r\n"
+//     "Hello, world!"
+//     ;
+char *RPI_POST_REQUEST_a = "POST " RPI_PATH " HTTP/1.0\r\n"
+    "Host: ";
+char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
     "Accept: */*\r\n"
     "Content-Type: text/plain\r\n"
@@ -301,6 +333,12 @@ static const char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
 
 static void http_post_task(void *pvParameters)
 {
+    char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(RPI_SERVER)+strlen(RPI_POST_REQUEST_b));
+    strcpy(RPI_POST_REQUEST, RPI_POST_REQUEST_a);
+    strcat(RPI_POST_REQUEST, RPI_SERVER);
+    strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_b);
+    printf(RPI_POST_REQUEST);
+
     const struct addrinfo hints = {
         .ai_family = AF_INET,
         .ai_socktype = SOCK_STREAM,
@@ -369,19 +407,20 @@ static void http_post_task(void *pvParameters)
         do {
             bzero(recv_buf, sizeof(recv_buf));
             r = read(s, recv_buf, sizeof(recv_buf)-1);
-            for(int i = 0; i < r; i++) {
-                putchar(recv_buf[i]);
-            }
+            // for(int i = 0; i < r; i++) {
+            //     putchar(recv_buf[i]);
+            // }
         } while(r > 0);
 
         ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
         close(s);
-        for(int countdown = 10; countdown >= 0; countdown--) {
+        for(int countdown = 1; countdown >= 0; countdown--) {
             ESP_LOGI(TAG, "%d... ", countdown);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
         ESP_LOGI(TAG, "Starting again!");
     }
+    // free(RPI_POST_REQUEST);
 }
 ////////
 // http
@@ -496,7 +535,6 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
             break;
         }
 
-
         // strncpy(sc_temp, buf, ret);
         int sum = 0 , index =0 ;
         while(sscanf(buf+(sum+=index),"%s%n",sc_temp,&index)!=-1);
@@ -517,7 +555,7 @@ cleanup:
     esp_tls_conn_destroy(tls);
 exit:
     for (int countdown = 10; countdown >= 0; countdown--) {
-        ESP_LOGI(TAG, "%d...", countdown);
+        // ESP_LOGI(TAG, "%d...", countdown);
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
@@ -615,9 +653,9 @@ static void https_request_task(void *pvparameters)
     https_get_request_using_crt_bundle();
 #endif
     ESP_LOGI(TAG, "Minimum free heap size: %" PRIu32 " bytes", esp_get_minimum_free_heap_size());
-    // while(1){//repeat run temp/hum
-    //     https_get_request_using_cacert_buf();
-    // }
+    while(1){//repeat run temp/hum
+        https_get_request_using_cacert_buf();
+    }
     // https_get_request_using_global_ca_store(); //dont need
     ESP_LOGI(TAG, "Finish https_request example");
     vTaskDelete(NULL);
@@ -629,6 +667,34 @@ static void https_request_task(void *pvparameters)
 //////// start
 // wifi
 ////////
+#include "esp_netif.h"
+
+void get_gateway_ip()
+{
+    esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+
+    if (netif == NULL) {
+        // Handle error: Network interface not found
+        return;
+    }
+
+    esp_netif_ip_info_t ip_info;
+    if (esp_netif_get_ip_info(netif, &ip_info) != ESP_OK) {
+        // Handle error: Failed to get IP info
+        return;
+    }
+
+    esp_ip4_addr_t gw_ip = ip_info.gw;
+
+    char gw_ip_str[IP4ADDR_STRLEN_MAX];
+    esp_ip4addr_ntoa(&gw_ip, gw_ip_str, IP4ADDR_STRLEN_MAX);
+
+    printf("using gateway IP: %s\n", gw_ip_str);
+    // strncpy(gw, gw_ip_str,IP4ADDR_STRLEN_MAX);
+    RPI_SERVER = malloc(strlen(gw_ip_str)+1);
+    strcpy(RPI_SERVER, gw_ip_str);
+}
+
 static int s_retry_num = 0;
 
 static void event_handler(void* arg, esp_event_base_t event_base,
@@ -654,9 +720,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 }
 
 void wifi_init_sta(void)
-{
-    esp_wifi_sta_wpa2_ent_set_ca_cert(ca_certificate_pem, strlen(ca_certificate_pem));
-
+{   
     s_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -719,6 +783,7 @@ void wifi_init_sta(void)
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
+    get_gateway_ip();
 }
 ////////
 // wifi
@@ -743,12 +808,18 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to initialize I2C master");
         return;
     }
-    // shtc3_task();
-    xTaskCreate(&shtc3_task, "shtc3_task", 4096, NULL, 5, NULL);
-
+    //get location from server
     xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
-    // xTaskCreate(&https_request_task, "https_get_task", 8192, NULL, 5, NULL);
-    xTaskCreate(&http_get_task, "http_post_task", 4096, NULL, 5, NULL);
+    // http_get_task();
+
+    // shtc3_task(); get temp/hum from sensor
+    xTaskCreate(&shtc3_task, "shtc3_task", 4096, NULL, 5, NULL);
+    //get temp from wttr
+    xTaskCreate(&https_request_task, "https_get_task", 8192, NULL, 5, NULL);
+
+    //send post request to server
+    // xTaskCreate(&http_post_task, "http_post_task", 4096, NULL, 5, NULL);
+
 }
 
 // curl "www.wttr.in/Santa+Cruz?format=%l:+%c+%t"
