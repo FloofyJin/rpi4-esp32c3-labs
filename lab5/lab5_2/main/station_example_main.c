@@ -76,11 +76,11 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "wifi station";
 
-char location[64];
+char *location;
 
 char sc_temp[512];
-char esp_temp[10];
-char esp_hum[10];
+float esp_temp;
+float esp_hum;
 
 //////// start
 // humidity and temperature sensor
@@ -177,8 +177,10 @@ void shtc3_task(){
             raw_temperature = (data[0] << 8) | data[1];
             float humidity = calculate_humidity(raw_humidity);
             float temperature = calculate_temperature(raw_temperature);
-            sprintf(esp_temp, "%s%.0fC", "Temp: ", temperature);
-            sprintf(esp_hum, "%s%.0f%%", "Hum : ", humidity);
+            esp_temp = temperature;
+            esp_hum = humidity;
+            // sprintf(esp_temp, "%s%.0fC", "Temp: ", temperature);
+            // sprintf(esp_hum, "%s%.0f%%", "Hum : ", humidity);
             // ESP_LOGI(TAG, "Humidity: %.2f %%", humidity);
             // ESP_LOGI(TAG, "Temperature: %.2f C (%.2f F)", temperature, (temperature*1.8)+32);
         } else {
@@ -196,7 +198,7 @@ void shtc3_task(){
 //////// start
 // http
 ////////
-char *RPI_SERVER;
+char *rpi_server;
 // #define RPI_SERVER = "example.com"
 #define RPI_PORT "8000"
 #define RPI_PATH "/"
@@ -215,11 +217,11 @@ static char *RPI_REQUEST_b = ":"RPI_PORT"\r\n"
 
 static void http_get_task(void *pvParameters)
 {
-    char *RPI_REQUEST = (char *) malloc(1+strlen(RPI_REQUEST_a)+strlen(RPI_SERVER)+strlen(RPI_REQUEST_b));
+    char *RPI_REQUEST = (char *) malloc(1+strlen(RPI_REQUEST_a)+strlen(rpi_server)+strlen(RPI_REQUEST_b));
     strcpy(RPI_REQUEST, RPI_REQUEST_a);
-    strcat(RPI_REQUEST, RPI_SERVER);
+    strcat(RPI_REQUEST, rpi_server);
     strcat(RPI_REQUEST, RPI_REQUEST_b);
-    printf(RPI_REQUEST);
+    // printf(RPI_REQUEST);
 
     const struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -231,7 +233,7 @@ static void http_get_task(void *pvParameters)
     char recv_buf[64];
 
     while(1) {
-        int err = getaddrinfo(RPI_SERVER, RPI_PORT, &hints, &res);
+        int err = getaddrinfo(rpi_server, RPI_PORT, &hints, &res);
 
         if(err != 0 || res == NULL) {
             ESP_LOGE(TAG, "DNS lookup failed err=%d res=%p", err, res);
@@ -285,18 +287,26 @@ static void http_get_task(void *pvParameters)
         }
         ESP_LOGI(TAG, "... set socket receiving timeout success");
         
-        // int sum = 0 , index =0 ;
-        // while(sscanf(recv_buf+(sum+=index),"%s%n",location,&index)!=-1);
-        // fprintf(stdout, "location: %s\n", location);
 
         /* Read HTTP response */
+        char received_data[128] = "";
         do {
             bzero(recv_buf, sizeof(recv_buf));
             r = read(s, recv_buf, sizeof(recv_buf)-1);
-            for(int i = 0; i < r; i++) {
+            // for(int i = 0; i < r; i++) {
                 // putchar(recv_buf[i]);
+                // location[loc_i++] = recv_buf[i];
+            // }
+            if(r>0){
+                strncat(received_data, recv_buf, r);
             }
         } while(r > 0);
+
+        location = strstr(received_data, "\r\n\r\n");
+        if(location != NULL){
+            location+= 4;
+        }
+        fprintf(stdout, "location: %s\n", location);
 
         ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
         close(s);
@@ -311,33 +321,69 @@ static void http_get_task(void *pvParameters)
     free(RPI_REQUEST);
 }
 
-// static const char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
-//     "Host: "RPI_SERVER":"RPI_PORT"\r\n"
+char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
+    "Host: 10.42.0.1:"RPI_PORT"\r\n"
+    "User-Agent: esp-idf/1.0 esp32\r\n"
+    "Accept: */*\r\n"
+    "Content-Type: text/plain\r\n"
+    "Content-Length: %d\r\n"
+    "\r\n"
+    "%s"
+    ;
+
+char *RPI_POST_REQUEST_a = "POST " RPI_PATH " HTTP/1.0\r\n"
+    "Host: ";
+// char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
 //     "User-Agent: esp-idf/1.0 esp32\r\n"
 //     "Accept: */*\r\n"
 //     "Content-Type: text/plain\r\n"
-//     "Content-Length: 13\r\n"
-//     "\r\n"
-//     "Hello, world!"
-//     ;
-char *RPI_POST_REQUEST_a = "POST " RPI_PATH " HTTP/1.0\r\n"
-    "Host: ";
+//     "Content-Length: 10";
+// char *RPI_POST_REQUEST_c = "\r\n\r\n";
 char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
     "Accept: */*\r\n"
     "Content-Type: text/plain\r\n"
-    "Content-Length: 13\r\n"
-    "\r\n"
-    "Hello, world!"
-    ;
+    "Content-Length: ";
+    
+char *RPI_POST_REQUEST_c = "\r\n\r\n";
 
 static void http_post_task(void *pvParameters)
 {
-    char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(RPI_SERVER)+strlen(RPI_POST_REQUEST_b));
-    strcpy(RPI_POST_REQUEST, RPI_POST_REQUEST_a);
-    strcat(RPI_POST_REQUEST, RPI_SERVER);
-    strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_b);
-    printf(RPI_POST_REQUEST);
+
+    // char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b)+strlen(RPI_POST_REQUEST_c)+strlen(location));
+    // char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b));
+    // char *len_location = malloc(digits * sizeof(char));;
+    // sprintf(len_location, "%d", strlen(location));
+
+    // strcpy(RPI_POST_REQUEST, RPI_POST_REQUEST_a);
+    // strcat(RPI_POST_REQUEST, rpi_server);
+    // strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_b);
+    // // // strcat(RPI_POST_REQUEST, "10");
+    // strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_c);
+    // strcat(RPI_POST_REQUEST, location);
+    // printf(RPI_POST_REQUEST);
+
+    // char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
+    // "Host: %s:"RPI_PORT"\r\n"
+    // "User-Agent: esp-idf/1.0 esp32\r\n"
+    // "Accept: */*\r\n"
+    // "Content-Type: text/plain\r\n"
+    // "Content-Length: %d\r\n"
+    // "\r\n"
+    // "%s"
+    // ;
+    
+    // char *POST_DATA = "city temp: %sC, esp temp: %0.2fC, esp hum: %0.2f%%";
+
+    // char post_data[636];
+    // sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_hum);
+
+    // char rpi_post_request[1024];
+    // sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
+
+    // printf(rpi_post_request);
+
+
 
     const struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -349,7 +395,7 @@ static void http_post_task(void *pvParameters)
     char recv_buf[64];
 
     while(1) {
-        int err = getaddrinfo(RPI_SERVER, RPI_PORT, &hints, &res);
+        int err = getaddrinfo(rpi_server, RPI_PORT, &hints, &res);
 
         if(err != 0 || res == NULL) {
             ESP_LOGE(TAG, "DNS lookup failed err=%d res=%p", err, res);
@@ -538,9 +584,9 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
         // strncpy(sc_temp, buf, ret);
         int sum = 0 , index =0 ;
         while(sscanf(buf+(sum+=index),"%s%n",sc_temp,&index)!=-1);
-        fprintf(stdout, "sc_temp: %s\n", sc_temp);
-        fprintf(stdout, "esp_temp: %s\n", esp_temp);
-        fprintf(stdout, "esp_hum: %s\n", esp_hum);
+        // fprintf(stdout, "sc_temp: %s\n", sc_temp);
+        // fprintf(stdout, "esp_temp: %0.2f\n", esp_temp);
+        // fprintf(stdout, "esp_hum: %0.2f\n", esp_hum);
 
         len = ret;
         ESP_LOGD(TAG, "%d bytes read", len);
@@ -691,8 +737,8 @@ void get_gateway_ip()
 
     printf("using gateway IP: %s\n", gw_ip_str);
     // strncpy(gw, gw_ip_str,IP4ADDR_STRLEN_MAX);
-    RPI_SERVER = malloc(strlen(gw_ip_str)+1);
-    strcpy(RPI_SERVER, gw_ip_str);
+    rpi_server = malloc(strlen(gw_ip_str)+1);
+    strcpy(rpi_server, gw_ip_str);
 }
 
 static int s_retry_num = 0;
@@ -818,8 +864,7 @@ void app_main(void)
     xTaskCreate(&https_request_task, "https_get_task", 8192, NULL, 5, NULL);
 
     //send post request to server
-    // xTaskCreate(&http_post_task, "http_post_task", 4096, NULL, 5, NULL);
-
+    xTaskCreate(&http_post_task, "http_post_task", 4096, NULL, 5, NULL);
 }
 
 // curl "www.wttr.in/Santa+Cruz?format=%l:+%c+%t"
