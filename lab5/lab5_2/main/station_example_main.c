@@ -76,7 +76,7 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "wifi station";
 
-char *location;
+char *location = "";
 
 char sc_temp[512];
 float esp_temp;
@@ -321,8 +321,27 @@ static void http_get_task(void *pvParameters)
     free(RPI_REQUEST);
 }
 
+// char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
+//     "Host: 10.42.0.1:"RPI_PORT"\r\n"
+//     "User-Agent: esp-idf/1.0 esp32\r\n"
+//     "Accept: */*\r\n"
+//     "Content-Type: text/plain\r\n"
+//     "Content-Length: 13\r\n"
+//     "\r\n"
+//     "Hello, World!"
+//     ;
+
+// char *RPI_POST_REQUEST_a = "POST " RPI_PATH " HTTP/1.0\r\n"
+//     "Host: ";
+// char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
+//     "User-Agent: esp-idf/1.0 esp32\r\n"
+//     "Accept: */*\r\n"
+//     "Content-Type: text/plain\r\n"
+//     "Content-Length: ";
+// char *RPI_POST_REQUEST_c = "\r\n\r\n";
+
 char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
-    "Host: 10.42.0.1:"RPI_PORT"\r\n"
+    "%s:"RPI_PORT"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
     "Accept: */*\r\n"
     "Content-Type: text/plain\r\n"
@@ -330,38 +349,31 @@ char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "\r\n"
     "%s"
     ;
-
-char *RPI_POST_REQUEST_a = "POST " RPI_PATH " HTTP/1.0\r\n"
-    "Host: ";
-// char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
-//     "User-Agent: esp-idf/1.0 esp32\r\n"
-//     "Accept: */*\r\n"
-//     "Content-Type: text/plain\r\n"
-//     "Content-Length: 10";
-// char *RPI_POST_REQUEST_c = "\r\n\r\n";
-char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
-    "User-Agent: esp-idf/1.0 esp32\r\n"
-    "Accept: */*\r\n"
-    "Content-Type: text/plain\r\n"
-    "Content-Length: ";
-    
-char *RPI_POST_REQUEST_c = "\r\n\r\n";
+char *POST_DATA = "city temp: %sC, esp temp: %0.2fC, esp hum: %0.2f%%";
 
 static void http_post_task(void *pvParameters)
 {
 
-    // char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b)+strlen(RPI_POST_REQUEST_c)+strlen(location));
+    // char *rpi_post_request = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b));
     // char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b));
     // char *len_location = malloc(digits * sizeof(char));;
     // sprintf(len_location, "%d", strlen(location));
 
-    // strcpy(RPI_POST_REQUEST, RPI_POST_REQUEST_a);
-    // strcat(RPI_POST_REQUEST, rpi_server);
-    // strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_b);
+    // int digits = 0;
+    // int n = strlen(location);
+    // do {
+    //     n /= 10;
+    //     ++digits;
+    // } while (n != 0);
+
+    // strcpy(rpi_post_request, RPI_POST_REQUEST_a);
+    // strcat(rpi_post_request, rpi_server);
+    // strcat(rpi_post_request, RPI_POST_REQUEST_b);
     // // // strcat(RPI_POST_REQUEST, "10");
     // strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_c);
     // strcat(RPI_POST_REQUEST, location);
-    // printf(RPI_POST_REQUEST);
+    // printf(rpi_post_request);
+
 
     // char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     // "Host: %s:"RPI_PORT"\r\n"
@@ -395,6 +407,14 @@ static void http_post_task(void *pvParameters)
     char recv_buf[64];
 
     while(1) {
+        
+        char post_data[636];
+        sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_hum);
+        // printf("%s", post_data);
+        char rpi_post_request[1024];
+        sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
+        printf("%s",rpi_post_request);
+
         int err = getaddrinfo(rpi_server, RPI_PORT, &hints, &res);
 
         if(err != 0 || res == NULL) {
@@ -429,7 +449,7 @@ static void http_post_task(void *pvParameters)
         ESP_LOGI(TAG, "... connected");
         freeaddrinfo(res);
 
-        if (write(s, RPI_POST_REQUEST, strlen(RPI_POST_REQUEST)) < 0) {
+        if (write(s, rpi_post_request, strlen(rpi_post_request)) < 0) {
             ESP_LOGE(TAG, "... socket send failed");
             close(s);
             vTaskDelay(4000 / portTICK_PERIOD_MS);
