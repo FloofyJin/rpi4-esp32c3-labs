@@ -228,13 +228,12 @@ void DFRobot_LCD::load_custom_character(uint8_t char_num, uint8_t *rows){
 		customSymbol(char_num, rows);
 }
 
-void DFRobot_LCD::printstr(const char c[], DFRobot_LCD lcd, int row){
+void DFRobot_LCD::printstr(const char c[]){
 	///< This function is not identical to the function used for "real" I2C displays
 	///< it's here so the user sketch doesn't have to be changed 
 	// print(c);
     for(int i =0; i < strlen(c); i++){
-        lcd.setCursor(i,row);
-        lcd.write(c[i]);
+        this->write(c[i]);
     }
 }
 

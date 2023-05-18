@@ -86,8 +86,10 @@ void app_main(void)
             float temperature = calculate_temperature(raw_temperature);
             sprintf(temp, "%s%.0fC", "Temp: ", temperature);
             sprintf(hum, "%s%.0f%%", "Hum : ", humidity);
-            lcd.printstr(temp, lcd, 0);
-            lcd.printstr(hum, lcd, 1);
+            lcd.setCursor(0,0);
+            lcd.printstr(temp);
+            lcd.setCursor(0,1);
+            lcd.printstr(hum);
             } else {
             ESP_LOGI(TAG, "Failed to read data from SHTC3 sensor %d", err);
         }

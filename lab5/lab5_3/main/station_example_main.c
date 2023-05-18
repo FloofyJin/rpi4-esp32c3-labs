@@ -80,6 +80,7 @@ char *location = "";
 
 char sc_temp[512];
 float esp_temp;
+float esp_temp_f;
 float esp_hum;
 
 //////// start
@@ -178,6 +179,7 @@ void shtc3_task(){
             float humidity = calculate_humidity(raw_humidity);
             float temperature = calculate_temperature(raw_temperature);
             esp_temp = temperature;
+            esp_temp_f = temperature*9/5 + 32;
             esp_hum = humidity;
             // sprintf(esp_temp, "%s%.0fC", "Temp: ", temperature);
             // sprintf(esp_hum, "%s%.0f%%", "Hum : ", humidity);
@@ -321,25 +323,6 @@ static void http_get_task(void *pvParameters)
     free(RPI_REQUEST);
 }
 
-// char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
-//     "Host: 10.42.0.1:"RPI_PORT"\r\n"
-//     "User-Agent: esp-idf/1.0 esp32\r\n"
-//     "Accept: */*\r\n"
-//     "Content-Type: text/plain\r\n"
-//     "Content-Length: 13\r\n"
-//     "\r\n"
-//     "Hello, World!"
-//     ;
-
-// char *RPI_POST_REQUEST_a = "POST " RPI_PATH " HTTP/1.0\r\n"
-//     "Host: ";
-// char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
-//     "User-Agent: esp-idf/1.0 esp32\r\n"
-//     "Accept: */*\r\n"
-//     "Content-Type: text/plain\r\n"
-//     "Content-Length: ";
-// char *RPI_POST_REQUEST_c = "\r\n\r\n";
-
 char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "%s:"RPI_PORT"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
@@ -349,7 +332,7 @@ char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "\r\n"
     "%s"
     ;
-char *POST_DATA = "city temp: %s, esp temp: %0.2fC, esp hum: %0.2f%%";
+char *POST_DATA = "city temp: %s, esp temp: %0.2fC (%0.2fF), esp hum: %0.2f%%";
 
 static void http_post_task(void *pvParameters)
 {
@@ -366,7 +349,7 @@ static void http_post_task(void *pvParameters)
     while(1) {
         
         char post_data[636];
-        sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_hum);
+        sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_temp_f, esp_hum);
         // printf("%s", post_data);
         char rpi_post_request[1024];
         sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
