@@ -200,7 +200,7 @@ void shtc3_task(){
 ////////
 char *rpi_server;
 // #define RPI_SERVER = "example.com"
-#define RPI_PORT "8000"
+#define RPI_PORT "1234"
 #define RPI_PATH "/"
 
 // static char *RPI_REQUEST = "GET " RPI_PATH " HTTP/1.0\r\n"
@@ -413,7 +413,7 @@ static void http_post_task(void *pvParameters)
         // printf("%s", post_data);
         char rpi_post_request[1024];
         sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
-        printf("%s",rpi_post_request);
+        // printf("%s",rpi_post_request);
 
         int err = getaddrinfo(rpi_server, RPI_PORT, &hints, &res);
 
@@ -503,15 +503,24 @@ static void http_post_task(void *pvParameters)
 #define WEB_SERVER "www.wttr.in"
 #define WEB_PORT "443"
 // #define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%l:+%c+%t"
-#define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%t"
-#define WEB_PATH "/Santa+Cruz?format=%l:+%c+%t"
+// #define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%t"
+#define WEB_URL "https://www.wttr.in"
+// #define WEB_PATH "/Santa+Cruz?format=%t"
+// #define WEB_PATH "/%s?format=%t"
 
 #define SERVER_URL_MAX_SZ 256
 
 /* Timer interval once every day (24 Hours) */
 #define TIME_PERIOD (86400000000ULL)
 
-static const char HOWSMYSSL_REQUEST[] = "GET " WEB_PATH " HTTP/1.1\r\n"
+// static const char HOWSMYSSL_REQUEST[] = "GET " WEB_PATH " HTTP/1.1\r\n"
+//                              "Host: "WEB_SERVER"\r\n"
+//                              "User-Agent: esp-idf/1.0 esp32\r\n"
+//                              "Accept: */*\r\n"
+//                              "\r\n";
+char HOWSMYSSL_REQUEST_a [] = "GET /%s";
+
+char HOWSMYSSL_REQUEST_b [] = "?format=%t HTTP/1.1\r\n"
                              "Host: "WEB_SERVER"\r\n"
                              "User-Agent: esp-idf/1.0 esp32\r\n"
                              "Accept: */*\r\n"
@@ -523,6 +532,19 @@ static const char LOCAL_SRV_REQUEST[] = "GET " CONFIG_EXAMPLE_LOCAL_SERVER_URL "
                              "User-Agent: esp-idf/1.0 esp32\r\n"
                              "\r\n";
 #endif
+
+char howsmyssl_request[200] = "";
+
+void update_web_url(){
+    for (int i = 0; location[i] != '\0'; i++) {
+        if (location[i] == ' ') {
+            location[i] = '+';
+        }
+    }
+    sprintf(howsmyssl_request, HOWSMYSSL_REQUEST_a, location);
+    strcat(howsmyssl_request, HOWSMYSSL_REQUEST_b);
+    // vTaskDelay(1000 / portTICK_PERIOD_MS);
+}
 
 /* Root cert for howsmyssl.com, taken from server_root_cert.pem
 
@@ -604,9 +626,9 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
         // strncpy(sc_temp, buf, ret);
         int sum = 0 , index =0 ;
         while(sscanf(buf+(sum+=index),"%s%n",sc_temp,&index)!=-1);
-        // fprintf(stdout, "sc_temp: %s\n", sc_temp);
-        // fprintf(stdout, "esp_temp: %0.2f\n", esp_temp);
-        // fprintf(stdout, "esp_hum: %0.2f\n", esp_hum);
+        fprintf(stdout, "sc_temp: %s\n", sc_temp);
+        fprintf(stdout, "esp_temp: %0.2f\n", esp_temp);
+        fprintf(stdout, "esp_hum: %0.2f\n", esp_hum);
 
         len = ret;
         ESP_LOGD(TAG, "%d bytes read", len);
@@ -633,7 +655,10 @@ static void https_get_request_using_crt_bundle(void)/////////////
     esp_tls_cfg_t cfg = {
         .crt_bundle_attach = esp_crt_bundle_attach,
     };
-    https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+    update_web_url();
+    // https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+    // printf(howsmyssl_request);
+    https_get_request(cfg, WEB_URL, howsmyssl_request);
 }
 #endif // CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 
@@ -644,24 +669,27 @@ static void https_get_request_using_cacert_buf(void)//////////////
         .cacert_buf = (const unsigned char *) server_root_cert_pem_start,
         .cacert_bytes = server_root_cert_pem_end - server_root_cert_pem_start,
     };
-    https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+    update_web_url();
+    // printf(howsmyssl_request);
+    // https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+    https_get_request(cfg, WEB_URL, howsmyssl_request);
 }
 
-static void https_get_request_using_global_ca_store(void)////////////
-{
-    esp_err_t esp_ret = ESP_FAIL;
-    ESP_LOGI(TAG, "https_request using global ca_store");
-    esp_ret = esp_tls_set_global_ca_store(server_root_cert_pem_start, server_root_cert_pem_end - server_root_cert_pem_start);
-    if (esp_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Error in setting the global ca store: [%02X] (%s),could not complete the https_request using global_ca_store", esp_ret, esp_err_to_name(esp_ret));
-        return;
-    }
-    esp_tls_cfg_t cfg = {
-        .use_global_ca_store = true,
-    };
-    https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
-    esp_tls_free_global_ca_store();
-}
+// static void https_get_request_using_global_ca_store(void)////////////
+// {
+//     esp_err_t esp_ret = ESP_FAIL;
+//     ESP_LOGI(TAG, "https_request using global ca_store");
+//     esp_ret = esp_tls_set_global_ca_store(server_root_cert_pem_start, server_root_cert_pem_end - server_root_cert_pem_start);
+//     if (esp_ret != ESP_OK) {
+//         ESP_LOGE(TAG, "Error in setting the global ca store: [%02X] (%s),could not complete the https_request using global_ca_store", esp_ret, esp_err_to_name(esp_ret));
+//         return;
+//     }
+//     esp_tls_cfg_t cfg = {
+//         .use_global_ca_store = true,
+//     };
+//     https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+//     esp_tls_free_global_ca_store();
+// }
 
 #ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
 static void https_get_request_to_local_server(const char* url)//////////
@@ -758,7 +786,8 @@ void get_gateway_ip()
     printf("using gateway IP: %s\n", gw_ip_str);
     // strncpy(gw, gw_ip_str,IP4ADDR_STRLEN_MAX);
     rpi_server = malloc(strlen(gw_ip_str)+1);
-    strcpy(rpi_server, gw_ip_str);
+    // strcpy(rpi_server, gw_ip_str);//when using eth hotspot
+    strcpy(rpi_server, "192.168.0.48");//connected to wifi. set ip address manually to the server ip address
 }
 
 static int s_retry_num = 0;
