@@ -78,6 +78,7 @@ static const char *TAG = "wifi station";
 
 char *location = "";
 
+char sc_temp[512];
 float esp_temp;
 float esp_hum;
 
@@ -199,7 +200,7 @@ void shtc3_task(){
 ////////
 char *rpi_server;
 // #define RPI_SERVER = "example.com"
-#define RPI_PORT "1234"
+#define RPI_PORT "8000"
 #define RPI_PATH "/"
 
 // static char *RPI_REQUEST = "GET " RPI_PATH " HTTP/1.0\r\n"
@@ -320,6 +321,25 @@ static void http_get_task(void *pvParameters)
     free(RPI_REQUEST);
 }
 
+// char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
+//     "Host: 10.42.0.1:"RPI_PORT"\r\n"
+//     "User-Agent: esp-idf/1.0 esp32\r\n"
+//     "Accept: */*\r\n"
+//     "Content-Type: text/plain\r\n"
+//     "Content-Length: 13\r\n"
+//     "\r\n"
+//     "Hello, World!"
+//     ;
+
+// char *RPI_POST_REQUEST_a = "POST " RPI_PATH " HTTP/1.0\r\n"
+//     "Host: ";
+// char *RPI_POST_REQUEST_b = ":"RPI_PORT"\r\n"
+//     "User-Agent: esp-idf/1.0 esp32\r\n"
+//     "Accept: */*\r\n"
+//     "Content-Type: text/plain\r\n"
+//     "Content-Length: ";
+// char *RPI_POST_REQUEST_c = "\r\n\r\n";
+
 char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "%s:"RPI_PORT"\r\n"
     "User-Agent: esp-idf/1.0 esp32\r\n"
@@ -329,10 +349,53 @@ char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "\r\n"
     "%s"
     ;
-char *POST_DATA = "esp temp: %0.2fC, esp hum: %0.2f%%";
+char *POST_DATA = "city temp: %sC, esp temp: %0.2fC, esp hum: %0.2f%%";
 
 static void http_post_task(void *pvParameters)
 {
+
+    // char *rpi_post_request = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b));
+    // char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b));
+    // char *len_location = malloc(digits * sizeof(char));;
+    // sprintf(len_location, "%d", strlen(location));
+
+    // int digits = 0;
+    // int n = strlen(location);
+    // do {
+    //     n /= 10;
+    //     ++digits;
+    // } while (n != 0);
+
+    // strcpy(rpi_post_request, RPI_POST_REQUEST_a);
+    // strcat(rpi_post_request, rpi_server);
+    // strcat(rpi_post_request, RPI_POST_REQUEST_b);
+    // // // strcat(RPI_POST_REQUEST, "10");
+    // strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_c);
+    // strcat(RPI_POST_REQUEST, location);
+    // printf(rpi_post_request);
+
+
+    // char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
+    // "Host: %s:"RPI_PORT"\r\n"
+    // "User-Agent: esp-idf/1.0 esp32\r\n"
+    // "Accept: */*\r\n"
+    // "Content-Type: text/plain\r\n"
+    // "Content-Length: %d\r\n"
+    // "\r\n"
+    // "%s"
+    // ;
+    
+    // char *POST_DATA = "city temp: %sC, esp temp: %0.2fC, esp hum: %0.2f%%";
+
+    // char post_data[636];
+    // sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_hum);
+
+    // char rpi_post_request[1024];
+    // sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
+
+    // printf(rpi_post_request);
+
+
 
     const struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -346,7 +409,7 @@ static void http_post_task(void *pvParameters)
     while(1) {
         
         char post_data[636];
-        sprintf(post_data, POST_DATA, esp_temp, esp_hum);
+        sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_hum);
         // printf("%s", post_data);
         char rpi_post_request[1024];
         sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
@@ -430,6 +493,244 @@ static void http_post_task(void *pvParameters)
 //////// end
 
 //////// start
+// https
+////////
+#include "esp_tls.h"
+#if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
+#include "esp_crt_bundle.h"
+#endif
+/* Constants that aren't configurable in menuconfig */
+#define WEB_SERVER "www.wttr.in"
+#define WEB_PORT "443"
+// #define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%l:+%c+%t"
+#define WEB_URL "https://www.wttr.in/Santa+Cruz?format=%t"
+#define WEB_PATH "/Santa+Cruz?format=%l:+%c+%t"
+
+#define SERVER_URL_MAX_SZ 256
+
+/* Timer interval once every day (24 Hours) */
+#define TIME_PERIOD (86400000000ULL)
+
+static const char HOWSMYSSL_REQUEST[] = "GET " WEB_PATH " HTTP/1.1\r\n"
+                             "Host: "WEB_SERVER"\r\n"
+                             "User-Agent: esp-idf/1.0 esp32\r\n"
+                             "Accept: */*\r\n"
+                             "\r\n";
+
+#ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
+static const char LOCAL_SRV_REQUEST[] = "GET " CONFIG_EXAMPLE_LOCAL_SERVER_URL " HTTP/1.1\r\n"
+                             "Host: "WEB_SERVER"\r\n"
+                             "User-Agent: esp-idf/1.0 esp32\r\n"
+                             "\r\n";
+#endif
+
+/* Root cert for howsmyssl.com, taken from server_root_cert.pem
+
+   The PEM file was extracted from the output of this command:
+   openssl s_client -showcerts -connect www.howsmyssl.com:443 </dev/null
+
+   The CA root cert is the last cert given in the chain of certs.
+
+   To embed it in the app binary, the PEM file is named
+   in the component.mk COMPONENT_EMBED_TXTFILES variable.
+*/
+extern const uint8_t server_root_cert_pem_start[] asm("_binary_server_root_cert_pem_start");
+extern const uint8_t server_root_cert_pem_end[]   asm("_binary_server_root_cert_pem_end");
+
+extern const uint8_t local_server_cert_pem_start[] asm("_binary_local_server_cert_pem_start");
+extern const uint8_t local_server_cert_pem_end[]   asm("_binary_local_server_cert_pem_end");
+
+#ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
+static esp_tls_client_session_t *tls_client_session = NULL;
+static bool save_client_session = false;
+#endif
+
+static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, const char *REQUEST)
+{
+    char buf[512];
+    int ret, len;
+
+    esp_tls_t *tls = esp_tls_init();
+    if (!tls) {
+        ESP_LOGE(TAG, "Failed to allocate esp_tls handle!");
+        goto exit;
+    }
+
+    if (esp_tls_conn_http_new_sync(WEB_SERVER_URL, &cfg, tls) == 1) {
+        ESP_LOGI(TAG, "Connection established...");
+    } else {
+        ESP_LOGE(TAG, "Connection failed...");
+        goto cleanup;
+    }
+
+#ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
+    /* The TLS session is successfully established, now saving the session ctx for reuse */
+    if (save_client_session) {
+        esp_tls_free_client_session(tls_client_session);
+        tls_client_session = esp_tls_get_client_session(tls);
+    }
+#endif
+
+    size_t written_bytes = 0;
+    do {
+        ret = esp_tls_conn_write(tls,
+                                 REQUEST + written_bytes,
+                                 strlen(REQUEST) - written_bytes);
+        if (ret >= 0) {
+            ESP_LOGI(TAG, "%d bytes written", ret);
+            written_bytes += ret;
+        } else if (ret != ESP_TLS_ERR_SSL_WANT_READ  && ret != ESP_TLS_ERR_SSL_WANT_WRITE) {
+            ESP_LOGE(TAG, "esp_tls_conn_write  returned: [0x%02X](%s)", ret, esp_err_to_name(ret));
+            goto cleanup;
+        }
+    } while (written_bytes < strlen(REQUEST));
+
+    ESP_LOGI(TAG, "Reading HTTP response...");
+    do {
+        len = sizeof(buf) - 1;
+        memset(buf, 0x00, sizeof(buf));
+        ret = esp_tls_conn_read(tls, (char *)buf, len);
+
+        if (ret == ESP_TLS_ERR_SSL_WANT_WRITE  || ret == ESP_TLS_ERR_SSL_WANT_READ) {
+            continue;
+        } else if (ret < 0) {
+            ESP_LOGE(TAG, "esp_tls_conn_read  returned [-0x%02X](%s)", -ret, esp_err_to_name(ret));
+            break;
+        } else if (ret == 0) {
+            ESP_LOGI(TAG, "connection closed");
+            break;
+        }
+
+        // strncpy(sc_temp, buf, ret);
+        int sum = 0 , index =0 ;
+        while(sscanf(buf+(sum+=index),"%s%n",sc_temp,&index)!=-1);
+        // fprintf(stdout, "sc_temp: %s\n", sc_temp);
+        // fprintf(stdout, "esp_temp: %0.2f\n", esp_temp);
+        // fprintf(stdout, "esp_hum: %0.2f\n", esp_hum);
+
+        len = ret;
+        ESP_LOGD(TAG, "%d bytes read", len);
+        /* Print response directly to stdout as it is read */
+        // for (int i = 0; i < len; i++) {
+        //     putchar(buf[i]);
+        // }
+        // putchar('\n'); // JSON output doesn't have a newline at end
+    } while (1);
+
+cleanup:
+    esp_tls_conn_destroy(tls);
+exit:
+    for (int countdown = 10; countdown >= 0; countdown--) {
+        // ESP_LOGI(TAG, "%d...", countdown);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+#if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
+static void https_get_request_using_crt_bundle(void)/////////////
+{
+    ESP_LOGI(TAG, "https_request using crt bundle");
+    esp_tls_cfg_t cfg = {
+        .crt_bundle_attach = esp_crt_bundle_attach,
+    };
+    https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+}
+#endif // CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
+
+static void https_get_request_using_cacert_buf(void)//////////////
+{
+    ESP_LOGI(TAG, "https_request using cacert_buf");
+    esp_tls_cfg_t cfg = {
+        .cacert_buf = (const unsigned char *) server_root_cert_pem_start,
+        .cacert_bytes = server_root_cert_pem_end - server_root_cert_pem_start,
+    };
+    https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+}
+
+static void https_get_request_using_global_ca_store(void)////////////
+{
+    esp_err_t esp_ret = ESP_FAIL;
+    ESP_LOGI(TAG, "https_request using global ca_store");
+    esp_ret = esp_tls_set_global_ca_store(server_root_cert_pem_start, server_root_cert_pem_end - server_root_cert_pem_start);
+    if (esp_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error in setting the global ca store: [%02X] (%s),could not complete the https_request using global_ca_store", esp_ret, esp_err_to_name(esp_ret));
+        return;
+    }
+    esp_tls_cfg_t cfg = {
+        .use_global_ca_store = true,
+    };
+    https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+    esp_tls_free_global_ca_store();
+}
+
+#ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
+static void https_get_request_to_local_server(const char* url)//////////
+{
+    ESP_LOGI(TAG, "https_request to local server");
+    esp_tls_cfg_t cfg = {
+        .cacert_buf = (const unsigned char *) local_server_cert_pem_start,
+        .cacert_bytes = local_server_cert_pem_end - local_server_cert_pem_start,
+        .skip_common_name = true,
+    };
+    save_client_session = true;
+    https_get_request(cfg, url, LOCAL_SRV_REQUEST);
+}
+
+static void https_get_request_using_already_saved_session(const char *url)//////////////
+{
+    ESP_LOGI(TAG, "https_request using saved client session");
+    esp_tls_cfg_t cfg = {
+        .client_session = tls_client_session,
+    };
+    https_get_request(cfg, url, LOCAL_SRV_REQUEST);
+    esp_tls_free_client_session(tls_client_session);
+    save_client_session = false;
+    tls_client_session = NULL;
+}
+#endif
+
+static void https_request_task(void *pvparameters)
+{
+    ESP_LOGI(TAG, "Start https_request example");
+
+#ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
+    char *server_url = NULL;
+#ifdef CONFIG_EXAMPLE_LOCAL_SERVER_URL_FROM_STDIN
+    char url_buf[SERVER_URL_MAX_SZ];
+    if (strcmp(CONFIG_EXAMPLE_LOCAL_SERVER_URL, "FROM_STDIN") == 0) {
+        example_configure_stdin_stdout();
+        fgets(url_buf, SERVER_URL_MAX_SZ, stdin);
+        int len = strlen(url_buf);
+        url_buf[len - 1] = '\0';
+        server_url = url_buf;
+    } else {
+        ESP_LOGE(TAG, "Configuration mismatch: invalid url for local server");
+        abort();
+    }
+    printf("\nServer URL obtained is %s\n", url_buf);
+#else
+    server_url = CONFIG_EXAMPLE_LOCAL_SERVER_URL;
+#endif /* CONFIG_EXAMPLE_LOCAL_SERVER_URL_FROM_STDIN */
+    https_get_request_to_local_server(server_url);
+    https_get_request_using_already_saved_session(server_url);
+#endif
+
+#if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
+    https_get_request_using_crt_bundle();
+#endif
+    ESP_LOGI(TAG, "Minimum free heap size: %" PRIu32 " bytes", esp_get_minimum_free_heap_size());
+    while(1){//repeat run temp/hum
+        https_get_request_using_cacert_buf();
+    }
+    // https_get_request_using_global_ca_store(); //dont need
+    ESP_LOGI(TAG, "Finish https_request example");
+    vTaskDelete(NULL);
+}
+////////
+// https
+//////// end
+
+//////// start
 // wifi
 ////////
 #include "esp_netif.h"
@@ -457,8 +758,7 @@ void get_gateway_ip()
     printf("using gateway IP: %s\n", gw_ip_str);
     // strncpy(gw, gw_ip_str,IP4ADDR_STRLEN_MAX);
     rpi_server = malloc(strlen(gw_ip_str)+1);
-    // strcpy(rpi_server, gw_ip_str);//when using eth hotspot
-    strcpy(rpi_server, "192.168.0.48");//connected to wifi. set ip address manually to the server ip address
+    strcpy(rpi_server, gw_ip_str);
 }
 
 static int s_retry_num = 0;
@@ -580,6 +880,8 @@ void app_main(void)
 
     // shtc3_task(); get temp/hum from sensor
     xTaskCreate(&shtc3_task, "shtc3_task", 4096, NULL, 5, NULL);
+    //get temp from wttr
+    xTaskCreate(&https_request_task, "https_get_task", 8192, NULL, 5, NULL);
 
     //send post request to server
     xTaskCreate(&http_post_task, "http_post_task", 4096, NULL, 5, NULL);
