@@ -76,7 +76,7 @@ static EventGroupHandle_t s_wifi_event_group;
 
 static const char *TAG = "wifi station";
 
-char *location = "";
+// char *location = "";
 
 float esp_temp;
 float esp_hum;
@@ -207,118 +207,118 @@ char *rpi_server;
 //     "User-Agent: esp-idf/1.0 esp32\r\n"
 //     "Accept: */*\r\n"
 //     "\r\n";
-static char *RPI_REQUEST_a = "GET " RPI_PATH " HTTP/1.0\r\n"
-    "Host: ";
-static char *RPI_REQUEST_b = ":"RPI_PORT"\r\n"
-    "User-Agent: esp-idf/1.0 esp32\r\n"
-    "Accept: */*\r\n"
-    "\r\n";
+// static char *RPI_REQUEST_a = "GET " RPI_PATH " HTTP/1.0\r\n"
+//     "Host: ";
+// static char *RPI_REQUEST_b = ":"RPI_PORT"\r\n"
+//     "User-Agent: esp-idf/1.0 esp32\r\n"
+//     "Accept: */*\r\n"
+//     "\r\n";
 
-static void http_get_task(void *pvParameters)
-{
-    char *RPI_REQUEST = (char *) malloc(1+strlen(RPI_REQUEST_a)+strlen(rpi_server)+strlen(RPI_REQUEST_b));
-    strcpy(RPI_REQUEST, RPI_REQUEST_a);
-    strcat(RPI_REQUEST, rpi_server);
-    strcat(RPI_REQUEST, RPI_REQUEST_b);
-    // printf(RPI_REQUEST);
+// static void http_get_task(void *pvParameters)
+// {
+//     char *RPI_REQUEST = (char *) malloc(1+strlen(RPI_REQUEST_a)+strlen(rpi_server)+strlen(RPI_REQUEST_b));
+//     strcpy(RPI_REQUEST, RPI_REQUEST_a);
+//     strcat(RPI_REQUEST, rpi_server);
+//     strcat(RPI_REQUEST, RPI_REQUEST_b);
+//     // printf(RPI_REQUEST);
 
-    const struct addrinfo hints = {
-        .ai_family = AF_INET,
-        .ai_socktype = SOCK_STREAM,
-    };
-    struct addrinfo *res;
-    struct in_addr *addr;
-    int s, r;
-    char recv_buf[64];
+//     const struct addrinfo hints = {
+//         .ai_family = AF_INET,
+//         .ai_socktype = SOCK_STREAM,
+//     };
+//     struct addrinfo *res;
+//     struct in_addr *addr;
+//     int s, r;
+//     char recv_buf[64];
 
-    while(1) {
-        int err = getaddrinfo(rpi_server, RPI_PORT, &hints, &res);
+//     while(1) {
+//         int err = getaddrinfo(rpi_server, RPI_PORT, &hints, &res);
 
-        if(err != 0 || res == NULL) {
-            ESP_LOGE(TAG, "DNS lookup failed err=%d res=%p", err, res);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            continue;
-        }
+//         if(err != 0 || res == NULL) {
+//             ESP_LOGE(TAG, "DNS lookup failed err=%d res=%p", err, res);
+//             vTaskDelay(1000 / portTICK_PERIOD_MS);
+//             continue;
+//         }
 
-        /* Code to print the resolved IP.
+//         /* Code to print the resolved IP.
 
-           Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
-        addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
-        ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", inet_ntoa(*addr));
+//            Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
+//         addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
+//         ESP_LOGI(TAG, "DNS lookup succeeded. IP=%s", inet_ntoa(*addr));
 
-        s = socket(res->ai_family, res->ai_socktype, 0);
-        if(s < 0) {
-            ESP_LOGE(TAG, "... Failed to allocate socket.");
-            freeaddrinfo(res);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            continue;
-        }
-        ESP_LOGI(TAG, "... allocated socket");
+//         s = socket(res->ai_family, res->ai_socktype, 0);
+//         if(s < 0) {
+//             ESP_LOGE(TAG, "... Failed to allocate socket.");
+//             freeaddrinfo(res);
+//             vTaskDelay(1000 / portTICK_PERIOD_MS);
+//             continue;
+//         }
+//         ESP_LOGI(TAG, "... allocated socket");
 
-        if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
-            ESP_LOGE(TAG, "... socket connect failed errno=%d", errno);
-            close(s);
-            freeaddrinfo(res);
-            vTaskDelay(4000 / portTICK_PERIOD_MS);
-            continue;
-        }
+//         if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
+//             ESP_LOGE(TAG, "... socket connect failed errno=%d", errno);
+//             close(s);
+//             freeaddrinfo(res);
+//             vTaskDelay(4000 / portTICK_PERIOD_MS);
+//             continue;
+//         }
 
-        ESP_LOGI(TAG, "... connected");
-        freeaddrinfo(res);
+//         ESP_LOGI(TAG, "... connected");
+//         freeaddrinfo(res);
 
-        if (write(s, RPI_REQUEST, strlen(RPI_REQUEST)) < 0) {
-            ESP_LOGE(TAG, "... socket send failed");
-            close(s);
-            vTaskDelay(4000 / portTICK_PERIOD_MS);
-            continue;
-        }
-        ESP_LOGI(TAG, "... socket send success");
+//         if (write(s, RPI_REQUEST, strlen(RPI_REQUEST)) < 0) {
+//             ESP_LOGE(TAG, "... socket send failed");
+//             close(s);
+//             vTaskDelay(4000 / portTICK_PERIOD_MS);
+//             continue;
+//         }
+//         ESP_LOGI(TAG, "... socket send success");
 
-        struct timeval receiving_timeout;
-        receiving_timeout.tv_sec = 5;
-        receiving_timeout.tv_usec = 0;
-        if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout,
-                sizeof(receiving_timeout)) < 0) {
-            ESP_LOGE(TAG, "... failed to set socket receiving timeout");
-            close(s);
-            vTaskDelay(4000 / portTICK_PERIOD_MS);
-            continue;
-        }
-        ESP_LOGI(TAG, "... set socket receiving timeout success");
+//         struct timeval receiving_timeout;
+//         receiving_timeout.tv_sec = 5;
+//         receiving_timeout.tv_usec = 0;
+//         if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout,
+//                 sizeof(receiving_timeout)) < 0) {
+//             ESP_LOGE(TAG, "... failed to set socket receiving timeout");
+//             close(s);
+//             vTaskDelay(4000 / portTICK_PERIOD_MS);
+//             continue;
+//         }
+//         ESP_LOGI(TAG, "... set socket receiving timeout success");
         
 
-        /* Read HTTP response */
-        char received_data[128] = "";
-        do {
-            bzero(recv_buf, sizeof(recv_buf));
-            r = read(s, recv_buf, sizeof(recv_buf)-1);
-            // for(int i = 0; i < r; i++) {
-                // putchar(recv_buf[i]);
-                // location[loc_i++] = recv_buf[i];
-            // }
-            if(r>0){
-                strncat(received_data, recv_buf, r);
-            }
-        } while(r > 0);
+//         /* Read HTTP response */
+//         char received_data[128] = "";
+//         do {
+//             bzero(recv_buf, sizeof(recv_buf));
+//             r = read(s, recv_buf, sizeof(recv_buf)-1);
+//             // for(int i = 0; i < r; i++) {
+//                 // putchar(recv_buf[i]);
+//                 // location[loc_i++] = recv_buf[i];
+//             // }
+//             if(r>0){
+//                 strncat(received_data, recv_buf, r);
+//             }
+//         } while(r > 0);
 
-        location = strstr(received_data, "\r\n\r\n");
-        if(location != NULL){
-            location+= 4;
-        }
-        fprintf(stdout, "location: %s\n", location);
+//         location = strstr(received_data, "\r\n\r\n");
+//         if(location != NULL){
+//             location+= 4;
+//         }
+//         fprintf(stdout, "location: %s\n", location);
 
-        ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
-        close(s);
+//         ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
+//         close(s);
 
-        for(int countdown = 10; countdown >= 0; countdown--) {
-            // ESP_LOGI(TAG, "%d... ", countdown);
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-        }
-        ESP_LOGI(TAG, "Starting again!");
-    }
+//         for(int countdown = 10; countdown >= 0; countdown--) {
+//             // ESP_LOGI(TAG, "%d... ", countdown);
+//             vTaskDelay(1000 / portTICK_PERIOD_MS);
+//         }
+//         ESP_LOGI(TAG, "Starting again!");
+//     }
 
-    free(RPI_REQUEST);
-}
+//     free(RPI_REQUEST);
+// }
 
 char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "%s:"RPI_PORT"\r\n"
@@ -575,7 +575,7 @@ void app_main(void)
         return;
     }
     //get location from server
-    xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
+    // xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
     // http_get_task();
 
     // shtc3_task(); get temp/hum from sensor

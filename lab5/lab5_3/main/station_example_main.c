@@ -349,53 +349,10 @@ char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "\r\n"
     "%s"
     ;
-char *POST_DATA = "city temp: %sC, esp temp: %0.2fC, esp hum: %0.2f%%";
+char *POST_DATA = "city temp: %s, esp temp: %0.2fC, esp hum: %0.2f%%";
 
 static void http_post_task(void *pvParameters)
 {
-
-    // char *rpi_post_request = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b));
-    // char *RPI_POST_REQUEST = (char *) malloc(1+strlen(RPI_POST_REQUEST_a)+strlen(rpi_server)+strlen(RPI_POST_REQUEST_b));
-    // char *len_location = malloc(digits * sizeof(char));;
-    // sprintf(len_location, "%d", strlen(location));
-
-    // int digits = 0;
-    // int n = strlen(location);
-    // do {
-    //     n /= 10;
-    //     ++digits;
-    // } while (n != 0);
-
-    // strcpy(rpi_post_request, RPI_POST_REQUEST_a);
-    // strcat(rpi_post_request, rpi_server);
-    // strcat(rpi_post_request, RPI_POST_REQUEST_b);
-    // // // strcat(RPI_POST_REQUEST, "10");
-    // strcat(RPI_POST_REQUEST, RPI_POST_REQUEST_c);
-    // strcat(RPI_POST_REQUEST, location);
-    // printf(rpi_post_request);
-
-
-    // char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
-    // "Host: %s:"RPI_PORT"\r\n"
-    // "User-Agent: esp-idf/1.0 esp32\r\n"
-    // "Accept: */*\r\n"
-    // "Content-Type: text/plain\r\n"
-    // "Content-Length: %d\r\n"
-    // "\r\n"
-    // "%s"
-    // ;
-    
-    // char *POST_DATA = "city temp: %sC, esp temp: %0.2fC, esp hum: %0.2f%%";
-
-    // char post_data[636];
-    // sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_hum);
-
-    // char rpi_post_request[1024];
-    // sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
-
-    // printf(rpi_post_request);
-
-
 
     const struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -633,10 +590,10 @@ static void https_get_request(esp_tls_cfg_t cfg, const char *WEB_SERVER_URL, con
         len = ret;
         ESP_LOGD(TAG, "%d bytes read", len);
         /* Print response directly to stdout as it is read */
-        // for (int i = 0; i < len; i++) {
-        //     putchar(buf[i]);
-        // }
-        // putchar('\n'); // JSON output doesn't have a newline at end
+        for (int i = 0; i < len; i++) {
+            putchar(buf[i]);
+        }
+        putchar('\n'); // JSON output doesn't have a newline at end
     } while (1);
 
 cleanup:
@@ -675,21 +632,23 @@ static void https_get_request_using_cacert_buf(void)//////////////
     https_get_request(cfg, WEB_URL, howsmyssl_request);
 }
 
-// static void https_get_request_using_global_ca_store(void)////////////
-// {
-//     esp_err_t esp_ret = ESP_FAIL;
-//     ESP_LOGI(TAG, "https_request using global ca_store");
-//     esp_ret = esp_tls_set_global_ca_store(server_root_cert_pem_start, server_root_cert_pem_end - server_root_cert_pem_start);
-//     if (esp_ret != ESP_OK) {
-//         ESP_LOGE(TAG, "Error in setting the global ca store: [%02X] (%s),could not complete the https_request using global_ca_store", esp_ret, esp_err_to_name(esp_ret));
-//         return;
-//     }
-//     esp_tls_cfg_t cfg = {
-//         .use_global_ca_store = true,
-//     };
-//     https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
-//     esp_tls_free_global_ca_store();
-// }
+static void https_get_request_using_global_ca_store(void)////////////
+{
+    esp_err_t esp_ret = ESP_FAIL;
+    ESP_LOGI(TAG, "https_request using global ca_store");
+    esp_ret = esp_tls_set_global_ca_store(server_root_cert_pem_start, server_root_cert_pem_end - server_root_cert_pem_start);
+    if (esp_ret != ESP_OK) {
+        ESP_LOGE(TAG, "Error in setting the global ca store: [%02X] (%s),could not complete the https_request using global_ca_store", esp_ret, esp_err_to_name(esp_ret));
+        return;
+    }
+    esp_tls_cfg_t cfg = {
+        .use_global_ca_store = true,
+    };
+    update_web_url();
+    https_get_request(cfg, WEB_URL, howsmyssl_request);
+    // https_get_request(cfg, WEB_URL, HOWSMYSSL_REQUEST);
+    esp_tls_free_global_ca_store();
+}
 
 #ifdef CONFIG_EXAMPLE_CLIENT_SESSION_TICKETS
 static void https_get_request_to_local_server(const char* url)//////////
@@ -750,7 +709,7 @@ static void https_request_task(void *pvparameters)
     while(1){//repeat run temp/hum
         https_get_request_using_cacert_buf();
     }
-    // https_get_request_using_global_ca_store(); //dont need
+    https_get_request_using_global_ca_store();
     ESP_LOGI(TAG, "Finish https_request example");
     vTaskDelete(NULL);
 }
@@ -786,8 +745,8 @@ void get_gateway_ip()
     printf("using gateway IP: %s\n", gw_ip_str);
     // strncpy(gw, gw_ip_str,IP4ADDR_STRLEN_MAX);
     rpi_server = malloc(strlen(gw_ip_str)+1);
-    // strcpy(rpi_server, gw_ip_str);//when using eth hotspot
-    strcpy(rpi_server, "192.168.0.48");//connected to wifi. set ip address manually to the server ip address
+    strcpy(rpi_server, gw_ip_str);//when using eth hotspot
+    // strcpy(rpi_server, "192.168.0.48");//connected to wifi. set ip address manually to the server ip address
 }
 
 static int s_retry_num = 0;
