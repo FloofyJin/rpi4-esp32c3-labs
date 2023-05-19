@@ -332,7 +332,7 @@ char *RPI_POST_REQUEST = "POST " RPI_PATH " HTTP/1.0\r\n"
     "\r\n"
     "%s"
     ;
-char *POST_DATA = "city temp: %s, esp temp: %0.2fC (%0.2fF), esp hum: %0.2f%%";
+char *POST_DATA = "%s temp: %s, esp temp: %0.2fC (%0.2fF), esp hum: %0.2f%%";
 
 static void http_post_task(void *pvParameters)
 {
@@ -349,7 +349,7 @@ static void http_post_task(void *pvParameters)
     while(1) {
         
         char post_data[636];
-        sprintf(post_data, POST_DATA, sc_temp, esp_temp, esp_temp_f, esp_hum);
+        sprintf(post_data, POST_DATA, location,sc_temp, esp_temp, esp_temp_f, esp_hum);
         // printf("%s", post_data);
         char rpi_post_request[1024];
         sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
@@ -420,10 +420,10 @@ static void http_post_task(void *pvParameters)
 
         ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
         close(s);
-        for(int countdown = 1; countdown >= 0; countdown--) {
-            ESP_LOGI(TAG, "%d... ", countdown);
+        // for(int countdown = 1; countdown >= 0; countdown--) {
+            // ESP_LOGI(TAG, "%d... ", countdown);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
-        }
+        // }
         ESP_LOGI(TAG, "Starting again!");
     }
     // free(RPI_POST_REQUEST);

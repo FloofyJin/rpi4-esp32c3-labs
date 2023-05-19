@@ -7,7 +7,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write(b'santa cruz')
+        self.wfile.write(b'austin')
     
     def do_POST(self):
         ctype, pdict = cgi.parse_header(self.headers.get('content-type'))

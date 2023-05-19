@@ -350,7 +350,7 @@ static void http_post_task(void *pvParameters)
         // printf("%s", post_data);
         char rpi_post_request[1024];
         sprintf(rpi_post_request, RPI_POST_REQUEST, rpi_server, strlen(post_data), post_data);
-        printf("%s",rpi_post_request);
+        // printf("%s",rpi_post_request);
 
         int err = getaddrinfo(rpi_server, RPI_PORT, &hints, &res);
 
@@ -417,10 +417,10 @@ static void http_post_task(void *pvParameters)
 
         ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
         close(s);
-        for(int countdown = 1; countdown >= 0; countdown--) {
-            ESP_LOGI(TAG, "%d... ", countdown);
+        // for(int countdown = 1; countdown >= 0; countdown--) {
+        //     ESP_LOGI(TAG, "%d... ", countdown);
             vTaskDelay(1000 / portTICK_PERIOD_MS);
-        }
+        // }
         ESP_LOGI(TAG, "Starting again!");
     }
     // free(RPI_POST_REQUEST);
@@ -457,8 +457,8 @@ void get_gateway_ip()
     printf("using gateway IP: %s\n", gw_ip_str);
     // strncpy(gw, gw_ip_str,IP4ADDR_STRLEN_MAX);
     rpi_server = malloc(strlen(gw_ip_str)+1);
-    // strcpy(rpi_server, gw_ip_str);//when using eth hotspot
-    strcpy(rpi_server, "192.168.0.48");//connected to wifi. set ip address manually to the server ip address
+    strcpy(rpi_server, gw_ip_str);//when using eth hotspot
+    // strcpy(rpi_server, "192.168.0.48");//connected to wifi. set ip address manually to the server ip address
 }
 
 static int s_retry_num = 0;
