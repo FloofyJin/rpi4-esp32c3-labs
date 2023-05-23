@@ -16,4 +16,4 @@ You need libgpiod-dev and gcc package installed.
 sudo apt update
 sudo apt install libgpiod-dev
 ```
-
+You might need to reboot after installation

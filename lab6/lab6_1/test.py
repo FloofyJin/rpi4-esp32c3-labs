@@ -11,11 +11,11 @@ try:
     while True:
         # Turn the GPIO pin on
         lgpio.gpio_write(h, LED, 1)
-        time.sleep(1)
+        time.sleep(5)
 
         # Turn the GPIO pin off
         lgpio.gpio_write(h, LED, 0)
-        time.sleep(1)
+        time.sleep(5)
 except KeyboardInterrupt:
     lgpio.gpio_write(h, LED, 0)
     lgpio.gpiochip_close(h)
