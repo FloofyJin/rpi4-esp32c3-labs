@@ -17,3 +17,7 @@ sudo apt update
 sudo apt install libgpiod-dev
 ```
 You might need to reboot after installation
+
+
+### Testing
+There is a python script test.py that will blink on/off every 5 seconds. This is purely for testing only.

@@ -36,14 +36,14 @@ const char *get_morse_code(char character) {
 
 void blink_dot(struct gpiod_line *line) {
     gpiod_line_set_value(line, 1);
-    usleep(DOT_DURATION_MS * 1000);
+    usleep(200 * 1000);
     gpiod_line_set_value(line, 0);
     usleep(DOT_DURATION_MS * 1000);
 }
 
 void blink_dash(struct gpiod_line *line) {
     gpiod_line_set_value(line, 1);
-    usleep(3 * DOT_DURATION_MS * 1000);
+    usleep(600 * 1000);
     gpiod_line_set_value(line, 0);
     usleep(DOT_DURATION_MS * 1000);
 }
@@ -102,11 +102,16 @@ int main(int argc, char *argv[]) {
     for (int j = 0; j < repeat; j++){
         for (int i = 0; i < message_length; i++) {
             char character = message[i];
+            // if (character == ' '){
+            //     printf("printing: [space]\n");
+            //     usleep(7*DOT_DURATION_MS * 1000);
+            //     continue;
+            // }
             const char *morse_code = get_morse_code(toupper((unsigned char)character));
             printf("printing: %c\n", message[i]);
             if (morse_code) {
                 blink_morse_code(line, morse_code);
-                usleep(3 * DOT_DURATION_MS * 1000);
+                usleep(700 * 1000);
             }
         }
     }
