@@ -10,13 +10,19 @@
 #define DOT_DURATION_MS 200
 
 // Define Morse code symbols and their corresponding English characters
+// const char *morseSymbols[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
+//                               "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--.."};
+// const char englishChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+//                              'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
 const char *morseSymbols[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
-                              "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--.."};
+                           "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+                           "-----", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----."};
 const char englishChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-                             'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
+                             'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
 // Function to convert Morse code to English
 char morseToEnglish(const char *morse) {
+    // printf("morse: %s", morse);
     int numSymbols = sizeof(morseSymbols) / sizeof(morseSymbols[0]);
     for (int i = 0; i < numSymbols; i++) {
         if (strcmp(morse, morseSymbols[i]) == 0) {
@@ -34,7 +40,7 @@ void app_main() {
     int64_t start_time = esp_timer_get_time();
     bool currentOn = false;
     bool lightOn = false;
-    char code[4] = "";
+    char code[6] = "";
     int i = 0;
     uint64_t diff;
     bool nothing = true;
@@ -54,12 +60,14 @@ void app_main() {
             lightOn = false;
         }
 
+        // putchar('a');
+
         if(!currentOn && lightOn){
             currentOn = true;
             start_time = esp_timer_get_time();
         }else if(currentOn && !lightOn ){
             diff = esp_timer_get_time() - start_time;
-            if (diff>=590000){ // dash
+            if (diff>=290000){ // dash
                 code[i++] = '-';
             }else { // dot
                 code[i++] = '.';
@@ -70,20 +78,26 @@ void app_main() {
         }else if(!currentOn && !lightOn){ // !currentOn && !lightOn
             diff = esp_timer_get_time() - start_time;
             if(code[0] != '\0'){
-                if(diff >= 690000){//new letter
+                // printf("time: %lld", diff);
+                // printf("");
+                if(diff >= 290000){//new letter
+                    // printf("%c", 'b');
                     printf("%c\n", morseToEnglish(code));
                     code[0] = '\0';
                     code[1] = '\0';
                     code[2] = '\0';
                     code[3] = '\0';
+                    code[4] = '\0';
+                    code[5] = '\0';
                     i = 0;
                     nothing = false;
                     start_time = esp_timer_get_time();
                 }else{//new dot/dash for the current letter
                     // do nothing
+                    // printf("hello");
                 }
             }
-            else if(!nothing && diff >=  790000){
+            else if(!nothing && diff >= 390000){
                     printf(" ");
                     nothing = true;
             }
