@@ -37,6 +37,7 @@ void app_main() {
     char code[4] = "";
     int i = 0;
     uint64_t diff;
+    bool nothing = true;
 
     while (1) {
         // Read the voltage from the ADC
@@ -54,10 +55,6 @@ void app_main() {
         }
 
         if(!currentOn && lightOn){
-            diff = esp_timer_get_time() - start_time;
-            // if(diff >= 1400000){
-            //     printf(" ");
-            // }
             currentOn = true;
             start_time = esp_timer_get_time();
         }else if(currentOn && !lightOn ){
@@ -80,9 +77,15 @@ void app_main() {
                     code[2] = '\0';
                     code[3] = '\0';
                     i = 0;
+                    nothing = false;
+                    start_time = esp_timer_get_time();
                 }else{//new dot/dash for the current letter
                     // do nothing
                 }
+            }
+            else if(!nothing && diff >=  790000){
+                    printf(" ");
+                    nothing = true;
             }
         }else{ //currentOn && lightOn
             // do nothing

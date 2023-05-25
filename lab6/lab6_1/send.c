@@ -102,11 +102,11 @@ int main(int argc, char *argv[]) {
     for (int j = 0; j < repeat; j++){
         for (int i = 0; i < message_length; i++) {
             char character = message[i];
-            // if (character == ' '){
-            //     printf("printing: [space]\n");
-            //     usleep(7*DOT_DURATION_MS * 1000);
-            //     continue;
-            // }
+            if (character == ' '){
+                printf("printing: [space]\n");
+                usleep(800 * 1000);
+                continue;
+            }
             const char *morse_code = get_morse_code(toupper((unsigned char)character));
             printf("printing: %c\n", message[i]);
             if (morse_code) {
