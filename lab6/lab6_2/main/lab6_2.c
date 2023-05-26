@@ -7,7 +7,9 @@
 
 #define ADC_CHANNEL ADC_CHANNEL_0
 #define DEFAULT_VREF 1100  // Default reference voltage (in millivolts) for ADC
-#define DOT_DURATION_MS 200
+#define DOT_DURATION_MS 50
+#define DASH_DURATION_MS 150
+#define SPACE_DURATION_MS 200
 
 // Define Morse code symbols and their corresponding English characters
 // const char *morseSymbols[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
@@ -44,6 +46,8 @@ void app_main() {
     int i = 0;
     uint64_t diff;
     bool nothing = true;
+    int counter = 30;
+    int spacer =30;
 
     while (1) {
         // Read the voltage from the ADC
@@ -60,50 +64,82 @@ void app_main() {
             lightOn = false;
         }
 
-        // putchar('a');
-
-        if(!currentOn && lightOn){
-            currentOn = true;
-            start_time = esp_timer_get_time();
-        }else if(currentOn && !lightOn ){
-            diff = esp_timer_get_time() - start_time;
-            if (diff>=290000){ // dash
+        if(currentOn && !lightOn){
+            if(counter >= 14){//dot
                 code[i++] = '-';
-            }else { // dot
+            }else {
                 code[i++] = '.';
             }
+            counter = 0;
             currentOn = false;
-            start_time = esp_timer_get_time();
-            //  printf("word: %c\n", morseToEnglish(code));
-        }else if(!currentOn && !lightOn){ // !currentOn && !lightOn
-            diff = esp_timer_get_time() - start_time;
+        }else if(!currentOn && lightOn){
+            counter = 0;
+            currentOn = true;
+        }if(!currentOn){
             if(code[0] != '\0'){
-                // printf("time: %lld", diff);
-                // printf("");
-                if(diff >= 290000){//new letter
-                    // printf("%c", 'b');
-                    printf("%c\n", morseToEnglish(code));
+                    // printf("hi");
+                    // printf("%c", morseToEnglish(code));
+                    printf("hi: %d  ", counter);
+                if(counter == 24){
+                    i=0;
+                    // printf("in ");
+                    printf("%c", morseToEnglish(code));
                     code[0] = '\0';
                     code[1] = '\0';
                     code[2] = '\0';
                     code[3] = '\0';
                     code[4] = '\0';
                     code[5] = '\0';
-                    i = 0;
-                    nothing = false;
-                    start_time = esp_timer_get_time();
-                }else{//new dot/dash for the current letter
-                    // do nothing
-                    // printf("hello");
                 }
+            }else if(counter == 29){
+                printf(" ");
             }
-            else if(!nothing && diff >= 390000){
-                    printf(" ");
-                    nothing = true;
-            }
-        }else{ //currentOn && lightOn
-            // do nothing
         }
+
+        counter++;
+
+        // if(!currentOn && lightOn){
+        //     currentOn = true;
+        //     start_time = esp_timer_get_time();
+        // }else if(currentOn && !lightOn ){
+        //     diff = esp_timer_get_time() - start_time;
+        //     if (diff>=DASH_DURATION_MS){ // dash
+        //         code[i++] = '-';
+        //     }else { // dot
+        //         code[i++] = '.';
+        //     }
+        //     currentOn = false;
+        //     start_time = esp_timer_get_time();
+        //     //  printf("word: %c\n", morseToEnglish(code));
+        // }else if(!currentOn && !lightOn){ // !currentOn && !lightOn
+        //     diff = esp_timer_get_time() - start_time;
+        //     if(code[0] != '\0'){
+        //         // printf("time: %lld", diff);
+        //         // printf("");
+        //         if(diff >= DASH_DURATION_MS){//new letter
+        //             // printf("%c", 'b');
+        //             printf("%c\n", morseToEnglish(code));
+        //             code[0] = '\0';
+        //             code[1] = '\0';
+        //             code[2] = '\0';
+        //             code[3] = '\0';
+        //             code[4] = '\0';
+        //             code[5] = '\0';
+        //             i = 0;
+        //             nothing = false;
+        //             start_time = esp_timer_get_time();
+        //         }else{//new dot/dash for the current letter
+        //             // do nothing
+        //             // printf("hello");
+        //         }
+        //     }
+        //     else if(!nothing && diff >= SPACE_DURATION_MS){
+        //             printf(" ");
+        //             nothing = true;
+        //     }
+        // }else{ //currentOn && lightOn
+        //     // do nothing
+        // }
 
         vTaskDelay(pdMS_TO_TICKS(10));  // Delay for 1 second
     }
