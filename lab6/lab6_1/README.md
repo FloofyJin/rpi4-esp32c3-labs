@@ -21,3 +21,5 @@ You might need to reboot after installation
 
 ### Testing
 There is a python script test.py that will blink on/off every 5 seconds. This is purely for testing only.
+
+If you go inside the "faster" folder, you will find another instance of the C program. there you can modify the dot/dash/space variables to suit the needs of your ESP32C3 configuration.
