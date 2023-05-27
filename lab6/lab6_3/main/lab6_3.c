@@ -7,15 +7,11 @@
 
 #define ADC_CHANNEL ADC_CHANNEL_0
 #define DEFAULT_VREF 1100  // Default reference voltage (in millivolts) for ADC
-#define DOT_DURATION_MS 50
-#define DASH_DURATION_MS 150
-#define SPACE_DURATION_MS 200
+#define DOT_DURATION_MS 20
+#define DASH_DURATION_MS 40
+#define SPACE_DURATION_MS 60
 
 // Define Morse code symbols and their corresponding English characters
-// const char *morseSymbols[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
-//                               "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--.."};
-// const char englishChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-//                              'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
 const char *morseSymbols[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
                            "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
                            "-----", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----."};
@@ -67,7 +63,7 @@ void app_main() {
         }
 
         if(currentOn && !lightOn){
-            if(counter >= 14){//dot
+            if(counter >= 3){// dash
                 code[i++] = '-';
             }else {
                 code[i++] = '.';
@@ -79,12 +75,8 @@ void app_main() {
             currentOn = true;
         }if(!currentOn){
             if(code[0] != '\0'){
-                    // printf("hi");
-                    // printf("%c", morseToEnglish(code));
-                    // printf("hi: %d  ", counter);
-                if(counter == 24){
+                if(counter == 5){//print letter
                     i=0;
-                    // printf("in ");
                     fprintf(stdout,"%c\n", morseToEnglish(code));
                     code[0] = '\0';
                     code[1] = '\0';
@@ -93,56 +85,12 @@ void app_main() {
                     code[4] = '\0';
                     code[5] = '\0';
                 }
-            }else if(counter == 29){
+            }else if(counter == 7){//space
                 printf(" ");
             }
         }
 
         counter++;
-
-        // if(!currentOn && lightOn){
-        //     currentOn = true;
-        //     start_time = esp_timer_get_time();
-        // }else if(currentOn && !lightOn ){
-        //     diff = esp_timer_get_time() - start_time;
-        //     if (diff>=DASH_DURATION_MS){ // dash
-        //         code[i++] = '-';
-        //     }else { // dot
-        //         code[i++] = '.';
-        //     }
-        //     currentOn = false;
-        //     start_time = esp_timer_get_time();
-        //     //  printf("word: %c\n", morseToEnglish(code));
-        // }else if(!currentOn && !lightOn){ // !currentOn && !lightOn
-        //     diff = esp_timer_get_time() - start_time;
-        //     if(code[0] != '\0'){
-        //         // printf("time: %lld", diff);
-        //         // printf("");
-        //         if(diff >= DASH_DURATION_MS){//new letter
-        //             // printf("%c", 'b');
-        //             printf("%c\n", morseToEnglish(code));
-        //             code[0] = '\0';
-        //             code[1] = '\0';
-        //             code[2] = '\0';
-        //             code[3] = '\0';
-        //             code[4] = '\0';
-        //             code[5] = '\0';
-        //             i = 0;
-        //             nothing = false;
-        //             start_time = esp_timer_get_time();
-        //         }else{//new dot/dash for the current letter
-        //             // do nothing
-        //             // printf("hello");
-        //         }
-        //     }
-        //     else if(!nothing && diff >= SPACE_DURATION_MS){
-        //             printf(" ");
-        //             nothing = true;
-        //     }
-        // }else{ //currentOn && lightOn
-        //     // do nothing
-        // }
-
         vTaskDelay(pdMS_TO_TICKS(10));  // Delay for 1 second
     }
 }
