@@ -8,7 +8,7 @@
 #define GPIO_CHIP "gpiochip0"
 #define GPIO_LINE_OFFSET 16
 #define DOT_DURATION_MS 20
-#define DASH_DURATION_MS 40
+#define DASH_DURATION_MS 2*DOT_DURATION_MS
 
 struct morse_code {
     char character;

@@ -7,9 +7,9 @@
 
 #define ADC_CHANNEL ADC_CHANNEL_0
 #define DEFAULT_VREF 1100  // Default reference voltage (in millivolts) for ADC
-#define DOT_DURATION_MS 20
-#define DASH_DURATION_MS 40
-#define SPACE_DURATION_MS 60
+#define DOT_COUNT 2
+#define DASH_COUNT DOT_COUNT*2
+#define SPACE_COUNT DOT_COUNT*3
 
 // Define Morse code symbols and their corresponding English characters
 const char *morseSymbols[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
@@ -63,7 +63,7 @@ void app_main() {
         }
 
         if(currentOn && !lightOn){
-            if(counter >= 3){// dash
+            if(counter >= DASH_COUNT){// dash
                 code[i++] = '-';
             }else {
                 code[i++] = '.';
@@ -75,7 +75,7 @@ void app_main() {
             currentOn = true;
         }if(!currentOn){
             if(code[0] != '\0'){
-                if(counter == 5){//print letter
+                if(counter == DASH_COUNT){//print letter
                     i=0;
                     fprintf(stdout,"%c\n", morseToEnglish(code));
                     code[0] = '\0';
@@ -85,7 +85,7 @@ void app_main() {
                     code[4] = '\0';
                     code[5] = '\0';
                 }
-            }else if(counter == 7){//space
+            }else if(counter == SPACE_COUNT){//space
                 printf(" ");
             }
         }
