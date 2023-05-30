@@ -50,7 +50,7 @@ void ultrasonic_task(void *pvParameters){
     //esp_timer_get_time() is in us
     //
     // uint32_t distance = (esp_timer_get_time() - start) / 58;
-    float distance = (esp_timer_get_time() - start) * (331.4+0.605*sqrt(temperature+273))*100 * 0.000001;
+    float distance = (esp_timer_get_time() - start) * (331.4+0.605*sqrt(temperature+273))*100 * 0.000001 / 2;
 
     ESP_LOGI(TAG, "Distance %0.2f cm at %.2f C (%.2f F)", distance, temperature, (temperature*1.8)+32);
 

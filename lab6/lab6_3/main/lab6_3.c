@@ -35,7 +35,7 @@ void app_main() {
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC_CHANNEL, ADC_ATTEN_DB_11);
 
-    int64_t start_time = esp_timer_get_time();
+    // int64_t start_time = esp_timer_get_time();
     bool currentOn = false;
     bool lightOn = false;
     char code[6] = "";
@@ -43,7 +43,7 @@ void app_main() {
     // uint64_t diff;
     // bool nothing = true;
     int counter = 30;
-    int spacer =30;
+    // int spacer =30;
     // char res[256] = "";
     // int resi = 0;
 
@@ -75,9 +75,10 @@ void app_main() {
             currentOn = true;
         }if(!currentOn){
             if(code[0] != '\0'){
-                if(counter == DASH_COUNT){//print letter
+                if(counter == DASH_COUNT-1){//print letter
                     i=0;
                     fprintf(stdout,"%c\n", morseToEnglish(code));
+                    // fflush(stdout);
                     code[0] = '\0';
                     code[1] = '\0';
                     code[2] = '\0';
@@ -85,7 +86,7 @@ void app_main() {
                     code[4] = '\0';
                     code[5] = '\0';
                 }
-            }else if(counter == SPACE_COUNT){//space
+            }else if(counter == SPACE_COUNT-1){//space
                 printf(" ");
             }
         }
