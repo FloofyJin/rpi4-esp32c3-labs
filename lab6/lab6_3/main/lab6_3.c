@@ -7,9 +7,13 @@
 
 #define ADC_CHANNEL ADC_CHANNEL_0
 #define DEFAULT_VREF 1100  // Default reference voltage (in millivolts) for ADC
-#define DOT_COUNT 2
-#define DASH_COUNT DOT_COUNT*2
-#define SPACE_COUNT DOT_COUNT*3
+
+// mess around with the values to make it work
+#define COUNT_TIME 10 // how fast counter should update
+#define DOT_COUNT 2 
+#define DASH_COUNT DOT_COUNT*3
+#define SPACE_COUNT DOT_COUNT*4
+#define LIGHT_THRESHOLD 50
 
 // Define Morse code symbols and their corresponding English characters
 const char *morseSymbols[] = {".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
@@ -35,47 +39,37 @@ void app_main() {
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC_CHANNEL, ADC_ATTEN_DB_11);
 
-    // int64_t start_time = esp_timer_get_time();
     bool currentOn = false;
     bool lightOn = false;
     char code[6] = "";
     int i = 0;
-    // uint64_t diff;
-    // bool nothing = true;
-    int counter = 30;
-    // int spacer =30;
-    // char res[256] = "";
-    // int resi = 0;
+
+    // just has to be a big number. so you dont print random char at the beginning
+    int counter = SPACE_COUNT+DASH_COUNT;
 
     while (1) {
         // Read the voltage from the ADC
         int val = adc1_get_raw(ADC_CHANNEL);
-
-        // Print the result
-        // printf("Voltage: %d\n", val);
-        // int64_t currentTime = esp_timer_get_time();
-        // printf("Current time: %lld ms\n", currentTime);
-
-        if (val > 50){
+        if (val > LIGHT_THRESHOLD){
             lightOn = true;
         }else{
             lightOn = false;
         }
 
-        if(currentOn && !lightOn){
-            if(counter >= DASH_COUNT){// dash
-                code[i++] = '-';
+        if(currentOn && !lightOn){ // light turns off
+            if(counter >= DASH_COUNT){
+                code[i++] = '-'; // dash
             }else {
-                code[i++] = '.';
+                code[i++] = '.'; // dot
             }
             counter = 0;
             currentOn = false;
-        }else if(!currentOn && lightOn){
+        }else if(!currentOn && lightOn){ // light turns on
             counter = 0;
             currentOn = true;
-        }if(!currentOn){
+        }if(!currentOn){ // light is currently off
             if(code[0] != '\0'){
-                if(counter == DASH_COUNT-1){//print letter
+                if(counter == DASH_COUNT-1){ // print letter
                     i=0;
                     fprintf(stdout,"%c\n", morseToEnglish(code));
                     // fflush(stdout);
@@ -86,12 +80,12 @@ void app_main() {
                     code[4] = '\0';
                     code[5] = '\0';
                 }
-            }else if(counter == SPACE_COUNT-1){//space
+            }else if(counter == SPACE_COUNT-1){ // space
                 printf(" ");
             }
         }
 
         counter++;
-        vTaskDelay(pdMS_TO_TICKS(10));  // Delay for 1 second
+        vTaskDelay(pdMS_TO_TICKS(COUNT_TIME));  // Delay for 1 second
     }
 }
